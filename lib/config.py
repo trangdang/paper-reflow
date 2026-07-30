@@ -2,14 +2,17 @@
 
 # --- Gutter / column detection ---
 GUTTER_MIN_WIDTH_PT = 6.0
-# blocks wider than this fraction of content width don't vote on the gutter
-NARROW_BLOCK_MAX_FRACTION = 0.55
-# gap must be empty across this fraction of narrow blocks' vertical extent
-GUTTER_COVERAGE_MIN_FRACTION = 0.6
+NARROW_BLOCK_MAX_FRACTION = (
+    0.55  # blocks wider than this fraction of content width don't vote on the gutter
+)
+GUTTER_COVERAGE_MIN_FRACTION = (
+    0.6  # gap must be empty across this fraction of narrow blocks' vertical extent
+)
 
 # --- Block classification ---
-# block must have this much of its width inside a column to be LEFT/RIGHT
-COLUMN_MEMBERSHIP_MIN_FRACTION = 0.95
+COLUMN_MEMBERSHIP_MIN_FRACTION = (
+    0.95  # block must have this much of its width inside a column to be LEFT/RIGHT
+)
 SPANNING_MIN_WIDTH_FRACTION = 0.60  # width relative to a single column's target width
 
 # --- Element width-completion heuristic ---
@@ -22,8 +25,9 @@ SPANNING_MIN_WIDTH_FRACTION = 0.60  # width relative to a single column's target
 # SPANNING rather than left ambiguous.
 SINGLE_COLUMN_MIN_WIDTH_FRACTION = 0.40  # fraction of page width
 TWO_COLUMN_MIN_WIDTH_FRACTION = 0.60  # fraction of page width
-# max gap to search for a merge candidate when completing a fragment
-ELEMENT_MERGE_SEARCH_GAP_PT = 60.0
+ELEMENT_MERGE_SEARCH_GAP_PT = (
+    60.0  # max gap to search for a merge candidate when completing a fragment
+)
 
 # --- Ambiguous-width reclassification ---
 # Unlike the width-completion heuristic above (which compares against page
@@ -32,10 +36,12 @@ ELEMENT_MERGE_SEARCH_GAP_PT = 60.0
 # content routinely sits right at ~40-48% of page width for normal
 # margins/gutters, which the old fixed 0.40-0.60 page-width band treated as
 # "ambiguous" and force-spanned every ordinary single-column paragraph.
-# an element must be at least this much wider than one column to become ambiguous
-AMBIGUOUS_WIDTH_MARGIN_PT = 15.0
-# fraction of the full two-column content span above which width is unambiguously spanning
-AMBIGUOUS_SPANNING_FRACTION = 0.85
+AMBIGUOUS_WIDTH_MARGIN_PT = (
+    15.0  # an element must be at least this much wider than one column to become ambiguous
+)
+AMBIGUOUS_SPANNING_FRACTION = (
+    0.85  # fraction of the full two-column content span above which width is unambiguously spanning
+)
 
 # --- Header / footer stripping ---
 HEADER_FOOTER_BAND_FRACTION = 0.05  # top/bottom 5% of page height
@@ -45,8 +51,9 @@ HEADER_FOOTER_MAX_WIDTH_PT = 60.0
 # --- Element grouping ---
 FIGURE_CLUSTER_GAP_PT = 4.0  # max gap between drawing rects to merge into one cluster
 CAPTION_MAX_DISTANCE_PT = 40.0
-# cluster/caption must horizontally overlap (within this tolerance) to be matched
-CAPTION_MAX_X_GAP_PT = 10.0
+CAPTION_MAX_X_GAP_PT = (
+    10.0  # cluster/caption must horizontally overlap (within this tolerance) to be matched
+)
 MIN_DRAWING_CLUSTER_AREA_PT2 = 20.0 * 20.0
 # Drawings that are stroke-free, fully opaque, near-pure-white fills are invisible on a white
 # page (e.g. leftover boxed-equation template artifacts) but still register as "figure" content
@@ -57,15 +64,19 @@ WHITE_FILL_MIN_COMPONENT = 0.95  # each RGB component must be at least this to c
 # Ruled table borders are drawn as thin stroked lines (zero-width or
 # zero-height rects in get_drawings), not filled area, so they're invisible
 # to the figure-drawing clustering above. Cluster them separately.
-# max gap between rule-line fragments to cluster into one table frame
-TABLE_RULE_CLUSTER_GAP_PT = 20.0
+TABLE_RULE_CLUSTER_GAP_PT = (
+    20.0  # max gap between rule-line fragments to cluster into one table frame
+)
 TABLE_RULE_MIN_LINES = 6  # min rule fragments required before a cluster counts as a ruled table
-# min distinct vertical rule x-positions (column ticks) required
-TABLE_RULE_MIN_DISTINCT_VERTICALS = 5
-# a horizontal rule must span at least this fraction of the region's width to count
-TABLE_RULE_FULL_WIDTH_FRACTION = 0.9
-# min distinct full-width horizontal rules (e.g. header/inter-row/bottom) required
-TABLE_RULE_MIN_FULL_WIDTH_LINES = 3
+TABLE_RULE_MIN_DISTINCT_VERTICALS = (
+    5  # min distinct vertical rule x-positions (column ticks) required
+)
+TABLE_RULE_FULL_WIDTH_FRACTION = (
+    0.9  # a horizontal rule must span at least this fraction of the region's width to count
+)
+TABLE_RULE_MIN_FULL_WIDTH_LINES = (
+    3  # min distinct full-width horizontal rules (e.g. header/inter-row/bottom) required
+)
 
 # --- Bbox padding / snapping ---
 VERTICAL_PAD_PT = 2.5
