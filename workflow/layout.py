@@ -223,6 +223,29 @@ def _is_rotated_margin_stamp(bbox: Bbox) -> bool:
     return bbox.width < 25.0 and bbox.height > 100.0
 
 
+def _content_x_range(blocks: list[dict]) -> tuple[float, float] | None:
+    """Leftmost/rightmost block edge across `blocks`, i.e. the actual
+    horizontal span of content -- the single source of truth for "content
+    width" shared by detect_gutter (per-column split) and _content_x_extent
+    (single-column fallback), so the two stay defined identically rather than
+    drifting apart. None if `blocks` is empty."""
+    bboxes = [_block_bbox(b) for b in blocks]
+    if not bboxes:
+        return None
+    return min(bb.x0 for bb in bboxes), max(bb.x1 for bb in bboxes)
+
+
+def _content_x_extent(blocks: list[dict], fallback_width: float) -> float:
+    """Span of actual text content on the page (rightmost block edge minus
+    leftmost), not the raw page width. Pages with wide unused margins would
+    otherwise make a real, complete column look like a fraction of the page
+    far smaller than its fraction of the content region."""
+    x_range = _content_x_range(blocks)
+    if x_range is None:
+        return fallback_width
+    return x_range[1] - x_range[0]
+
+
 def detect_gutter(
     page: fitz.Page, blocks: list[dict]
 ) -> tuple[bool, tuple | None, tuple | None, tuple | None]:
@@ -234,8 +257,7 @@ def detect_gutter(
         return False, None, None, None
 
     bboxes = [_block_bbox(b) for b in blocks]
-    content_x0 = min(bb.x0 for bb in bboxes)
-    content_x1 = max(bb.x1 for bb in bboxes)
+    content_x0, content_x1 = _content_x_range(blocks)
     content_width = content_x1 - content_x0
     if content_width <= 0:
         return False, None, None, None
@@ -863,18 +885,25 @@ def _merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Eleme
     return elements
 
 
-def _complete_undersized_elements(elements: list[Element], page_width: float) -> list[Element]:
+def _complete_undersized_elements(elements: list[Element], content_width: float) -> list[Element]:
     """Real technical-paper elements are essentially never an arbitrary
-    fraction of the page width: they're either about one column wide or they
-    span both columns. An element narrower than
+    fraction of the page's content width: they're either about one column
+    wide or they span both columns. An element narrower than
     SINGLE_COLUMN_MIN_WIDTH_FRACTION is treated as an incomplete fragment
     (this is what happens to dense, borderless math-notation tables that the
     earlier proximity clustering didn't fully absorb) and is repeatedly
     merged with its nearest neighbor — any column/kind — until it crosses the
     single-column-width floor or no neighbor remains within the search
     radius, in which case it's left standalone (a truly isolated small
-    icon/symbol shouldn't be force-inflated)."""
-    min_width = config.SINGLE_COLUMN_MIN_WIDTH_FRACTION * page_width
+    icon/symbol shouldn't be force-inflated).
+
+    content_width must be the actual text-content span (rightmost block edge
+    minus leftmost), not the raw page width: a page with wide unused margins
+    can have a real, complete column sit just under 40% of the *page* width
+    while still being ~48% of the *content* width, which would otherwise
+    misclassify every legitimate paragraph as an undersized fragment and
+    cascade-merge the whole page into one spanning element."""
+    min_width = config.SINGLE_COLUMN_MIN_WIDTH_FRACTION * content_width
     max_gap = config.ELEMENT_MERGE_SEARCH_GAP_PT
     elements = list(elements)
 
@@ -1076,7 +1105,8 @@ def build_page_layout(
     elements = _merge_adjacent_paragraphs(elements, median_line_height)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
-    elements = _complete_undersized_elements(elements, page.rect.width)
+    content_width = _content_x_extent(text_blocks, page.rect.width)
+    elements = _complete_undersized_elements(elements, content_width)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     _reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)

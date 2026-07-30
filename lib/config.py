@@ -14,14 +14,14 @@ SPANNING_MIN_WIDTH_FRACTION = 0.60  # width relative to a single column's target
 
 # --- Element width-completion heuristic ---
 # Real technical-paper elements are essentially never an arbitrary fraction of
-# the page width: they're either about one column wide, or they span both
+# the content width: they're either about one column wide, or they span both
 # columns. Elements narrower than SINGLE_COLUMN_MIN_WIDTH_FRACTION are
 # fragments that must be merged with nearby content until they reach a
 # natural size (unless nothing nearby completes them). Elements that land in
 # the 40-60% band can't cleanly fit in one column, so they're forced to
 # SPANNING rather than left ambiguous.
-SINGLE_COLUMN_MIN_WIDTH_FRACTION = 0.40  # fraction of page width
-TWO_COLUMN_MIN_WIDTH_FRACTION = 0.60  # fraction of page width
+SINGLE_COLUMN_MIN_WIDTH_FRACTION = 0.40  # fraction of content width
+TWO_COLUMN_MIN_WIDTH_FRACTION = 0.60  # fraction of content width
 # max gap to search for a merge candidate when completing a fragment
 ELEMENT_MERGE_SEARCH_GAP_PT = 60.0
 
