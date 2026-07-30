@@ -858,14 +858,25 @@ def build_page_layout(
         column = classify_block(bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
         elements.append(Element(kind=Kind.GRAPHIC, page_no=page_no, column=column, bbox=bbox))
 
-    # Dense clusters of small, closely-packed text blocks (borderless tables
-    # of math symbols with no drawn grid lines) -> merged TABLE elements.
+    # Dense clusters of small, closely-packed text blocks (e.g. the many
+    # individual math-symbol spans of an equation-heavy passage, or a
+    # borderless table of math symbols with no drawn grid lines) -> one
+    # merged element. Merging them up front is what stops the same content
+    # being clipped into two overlapping output positions; the kind label is
+    # secondary. Bias that label toward PARAGRAPH: a dense cluster confined to
+    # a single column is far more likely an equation-heavy paragraph than a
+    # table, so only a genuinely *spanning* dense region (which no ordinary
+    # paragraph produces -- paragraphs are single-column, spanning text is a
+    # heading or a real full-width table) is left as a TABLE. Ruled tables are
+    # detected separately via drawn rule lines and are unaffected by this.
     gap = 2 * config.VERTICAL_PAD_PT
     for el in _merge_dense_text_clusters(text_blocks, used_text_idx, gap):
         el.page_no = page_no
         el.column = (
             classify_block(el.bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
         )
+        if el.column != Column.SPANNING:
+            el.kind = Kind.PARAGRAPH
         elements.append(el)
 
     # Remaining text blocks -> paragraphs / headings.
