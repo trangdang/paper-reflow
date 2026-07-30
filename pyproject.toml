@@ -12,6 +12,14 @@ dev = [
     "ruff>=0.14.0",
 ]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    # PyMuPDF's SWIG bindings emit these on import under newer Python; the
+    # noise is entirely inside the dependency and not actionable here.
+    "ignore:builtin type Swig.*has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
+]
+
 [tool.ruff]
 line-length = 100
 

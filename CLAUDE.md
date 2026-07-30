@@ -36,8 +36,14 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-There are currently no test files under `tests/` — `sample-papers/micro_lie.pdf` is the reference
-document used for manual/exploratory verification of the pipeline end to end.
+`tests/` holds fast unit tests over the pure detection helpers — element merging
+(`_merge_overlapping_same_kind_elements`, `_complete_undersized_elements`'s cross-gutter guard),
+white-fill artifact detection (`_find_invisible_white_fill_artifacts`), the `Bbox` primitives, and
+the fidelity-check word accounting. They run in well under a second with hand-built `Element`/`Bbox`
+inputs (no PDF needed); a root `conftest.py` puts the project root on `sys.path` so `lib`/`workflow`/
+`scripts` import without an installed package. Passes that need a real `fitz.Page` (gutter detection,
+drawing/rule clustering, full `build_page_layout`) are not unit-tested — `sample-papers/micro_lie.pdf`
+remains the reference document for manual/exploratory end-to-end verification of the pipeline.
 
 `reflow.py` always writes debug artifacts next to the requested output, useful when debugging
 layout/ordering issues:
