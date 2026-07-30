@@ -38,14 +38,16 @@ def render_overlay(
                 fill_opacity=0.2,
             )
 
-        for el in layout.elements:
+        for i, el in enumerate(layout.elements):
             color = _KIND_COLORS.get(el.kind.value, (0, 0, 0))
             out_page.draw_rect(fitz.Rect(*el.bbox.as_tuple()), color=color, width=1)
             if el.padded_bbox is not None:
                 out_page.draw_rect(
                     fitz.Rect(*el.padded_bbox.as_tuple()), color=color, width=0.5, dashes="[2] 0"
                 )
-            label = f"{el.kind.value}/{el.column.value}"
+            # Index matches the "element N" numbering in *.warnings.log, which
+            # enumerates this same per-page layout.elements list.
+            label = f"#{i} {el.kind.value}/{el.column.value}"
             out_page.insert_text(
                 (el.bbox.x0, max(8, el.bbox.y0 - 2)), label, fontsize=6, color=color
             )

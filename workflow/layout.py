@@ -655,6 +655,44 @@ def _merge_overlapping_same_column_elements(elements: list[Element]) -> list[Ele
     return elements
 
 
+def _merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Element]:
+    """Two elements that share both column and kind (e.g. two LEFT-column
+    paragraphs) whose tight bboxes overlap at all -- even a sub-pixel sliver
+    below BBOX_OVERLAP_TOLERANCE_PT -- are the same logical unit split by
+    extraction noise (line-height rounding, ascender/descender box padding).
+    Unlike _merge_overlapping_same_column_elements, this doesn't need the
+    tolerance to guard against over-merging unrelated content: restricting to
+    matching kind already rules out folding a heading into a paragraph or a
+    table into a caption, so any genuine overlap is safe to merge. Iterated
+    to a fixed point. This catches exactly the borderline case the
+    column-only pass deliberately leaves alone (to avoid cascade-merging an
+    entire column) -- one padding can't fully snap away, which otherwise
+    surfaces as a padded-bbox-overlap warning."""
+    elements = list(elements)
+    changed = True
+    while changed:
+        changed = False
+        n = len(elements)
+        for i in range(n):
+            for j in range(i + 1, n):
+                a, b = elements[i], elements[j]
+                if a.column == b.column and a.kind == b.kind and a.bbox.intersects(b.bbox):
+                    merged = Element(
+                        kind=a.kind,
+                        page_no=a.page_no,
+                        column=a.column,
+                        bbox=a.bbox.union(b.bbox),
+                        text="\n".join(t for t in (a.text, b.text) if t),
+                        source_refs=a.source_refs + b.source_refs,
+                    )
+                    elements = [e for k, e in enumerate(elements) if k not in (i, j)] + [merged]
+                    changed = True
+                    break
+            if changed:
+                break
+    return elements
+
+
 def _complete_undersized_elements(elements: list[Element], page_width: float) -> list[Element]:
     """Real technical-paper elements are essentially never an arbitrary
     fraction of the page width: they're either about one column wide or they
@@ -851,8 +889,10 @@ def build_page_layout(
         elements, page, page_no, is_two_col, left_col_x, right_col_x
     )
     elements = _merge_adjacent_paragraphs(elements, median_line_height)
+    elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     elements = _complete_undersized_elements(elements, page.rect.width)
+    elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     _reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)
     elements.sort(key=lambda e: e.y0)
