@@ -79,9 +79,6 @@ OUTPUT_PAGE_HEIGHT_PT = 780.0
 OUTPUT_MARGIN_PT = 50.0
 INTER_ELEMENT_GAP_PT = 8.0
 
-# --- Rendering ---
-DRAFT_DPI = 200
-
 # --- Source-page reference markers ---
 # Inserted into the reading order at every original-PDF page boundary so the
 # reflowed output can be traced back to the source page it came from.

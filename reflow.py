@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CLI: convert a two-column academic PDF into a single-column, phone-friendly
-reflow. Always writes debug artifacts (raster layout draft + bbox overlay)
-alongside the requested output."""
+reflow. Always writes a bbox-overlay debug PDF alongside the requested
+output."""
 
 import argparse
 import pathlib
@@ -12,8 +12,8 @@ import fitz
 
 from lib.layout import build_page_layout, pad_and_snap_bboxes
 from workflow.reading_order import build_reading_order, insert_page_breaks
-from workflow.render_draft import render_draft, render_overlay
 from workflow.render_final import render_final
+from workflow.render_overlay import render_overlay
 
 
 def run(input_path: str, output_path: str) -> None:
@@ -42,11 +42,9 @@ def run(input_path: str, output_path: str) -> None:
     sequence = insert_page_breaks(build_reading_order(page_layouts))
 
     out_path = pathlib.Path(output_path)
-    draft_path = out_path.with_suffix(".draft.pdf")
     overlay_path = out_path.with_suffix(".debug-bboxes.pdf")
     warnings_path = out_path.with_suffix(".warnings.log")
 
-    render_draft(src_doc, sequence, str(draft_path))
     render_overlay(src_doc, page_layouts, str(overlay_path))
     render_final(src_doc, sequence, str(output_path))
 
@@ -57,7 +55,6 @@ def run(input_path: str, output_path: str) -> None:
         )
 
     print(f"[paper-reflow] wrote {output_path}")
-    print(f"[paper-reflow] wrote {draft_path}")
     print(f"[paper-reflow] wrote {overlay_path}")
 
 

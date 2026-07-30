@@ -1,12 +1,33 @@
-"""Assembles the final vector-preserving PDF by reusing the same pagination
-plan as render_draft, then replaying each element via show_pdf_page(clip=...)
+"""Assembles the final vector-preserving PDF from the shared pagination plan
+(see workflow.pagination), replaying each element via show_pdf_page(clip=...)
 so the output stays real vector content (selectable text, crisp figures)."""
 
 import fitz
 
 from lib import config
 from lib.elements import Element, Kind
-from workflow.render_draft import draw_page_break_marker, plan_pagination
+from workflow.pagination import plan_pagination
+
+
+def draw_page_break_marker(
+    page: fitz.Page, el: Element, margin: float, y_offset: float, width: float, height: float
+) -> None:
+    """Render a subtle 'page N' label + light gray rule marking where the
+    original source PDF's page boundary fell in the reading order."""
+    text_y = margin + y_offset + height * 0.65
+    line_y = margin + y_offset + height * 0.85
+    page.insert_text(
+        (margin, text_y),
+        el.text,
+        fontsize=config.PAGE_BREAK_FONT_SIZE,
+        color=config.PAGE_BREAK_TEXT_COLOR,
+    )
+    page.draw_line(
+        (margin, line_y),
+        (margin + width, line_y),
+        color=config.PAGE_BREAK_LINE_COLOR,
+        width=config.PAGE_BREAK_LINE_WIDTH,
+    )
 
 
 def render_final(

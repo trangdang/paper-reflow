@@ -39,10 +39,9 @@ There are currently no test files under `tests/` — `sample-papers/micro_lie.pd
 is the reference document used for manual/exploratory verification of the
 pipeline end to end.
 
-`reflow.py` always writes three artifacts next to the requested output,
+`reflow.py` always writes debug artifacts next to the requested output,
 useful when debugging layout/ordering issues:
 - `<output>.pdf` — final vector-preserving reflow
-- `<output>.draft.pdf` — rasterized draft (same pagination, faster to eyeball)
 - `<output>.debug-bboxes.pdf` — original pages with detected element bboxes,
   kind/column labels, and the gutter region overlaid
 - `<output>.warnings.log` — written only if padding/snapping produced
@@ -90,16 +89,15 @@ top to bottom gives the full flow; the modules below do the actual work.
    element). This is where "left column, then right column" becomes a
    literal document-wide list of `Element`s in final reading order.
 
-3. **`render_draft.py`**: `plan_pagination` greedily packs the ordered
+3. **`pagination.py`**: `plan_pagination` greedily packs the ordered
    element sequence onto fixed-height output pages (never splitting one
    element across a page break), scaling each element's height to a
    constant target column width. This pagination plan is the single source
    of truth for page breaks — `render_final.py` reuses the exact same
-   `plan_pagination` call so draft and final output paginate identically.
-   `render_draft` rasterizes each element via `get_pixmap(clip=...)`, plus
-   the debug overlay renderer for bbox/label inspection.
+   `plan_pagination` call to produce the output. This module also holds
+   `render_overlay`, the bbox/label debug-PDF renderer.
 
-4. **`render_final.py`**: replays the same pagination plan using
+4. **`render_final.py`**: replays the pagination plan using
    `show_pdf_page(clip=...)` instead of rasterization, so the output stays
    real vector content (selectable text, crisp vector figures) rather than
    an image.
