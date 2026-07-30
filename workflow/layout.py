@@ -486,7 +486,13 @@ def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.R
     actually meant to be boxed, so they recur at an identical size across the page -- and because
     their position is computed relative to the (unboxed) equation rather than the page, at least
     one copy typically ends up mispositioned off the physical page. A real content background is
-    both on-page and unique in size (no reason for two unrelated boxes to be pixel-identical)."""
+    both on-page and unique in size (no reason for two unrelated boxes to be pixel-identical).
+
+    Off-page positioning isn't the only tell, though: sometimes every stamped-out copy lands on
+    the page, just jittered relative to each other (e.g. offset a few dozen points horizontally
+    between equation instances). Two same-size rects that *overlap* each other are just as
+    telling as one being off-page -- genuine distinct content boxes of identical size don't get
+    stacked on top of one another, since that would just hide one behind the other."""
     candidates = []
     for i, d in enumerate(drawings):
         r = d.get("rect")
@@ -508,9 +514,16 @@ def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.R
             r.x0 < page_rect.x0 or r.y0 < page_rect.y0 or r.x1 > page_rect.x1 or r.y1 > page_rect.y1
         )
 
+    def any_pair_overlaps(items: list[tuple[int, fitz.Rect]]) -> bool:
+        return any(
+            a.intersects(b) for i, (_, a) in enumerate(items) for _, b in items[i + 1 :]
+        )
+
     artifact_indices: set[int] = set()
     for items in by_size.values():
-        if len(items) >= 2 and any(is_off_page(r) for _, r in items):
+        if len(items) < 2:
+            continue
+        if any(is_off_page(r) for _, r in items) or any_pair_overlaps(items):
             artifact_indices.update(i for i, _ in items)
     return artifact_indices
 
