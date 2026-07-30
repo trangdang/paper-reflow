@@ -35,10 +35,11 @@ def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
 
 def get_text_blocks(page: fitz.Page) -> tuple[list[dict], list[str]]:
     """Text blocks (type==0) from get_text('dict'), with header/footer blocks
-    excluded. Also returns the text of blocks excluded as rotated margin
-    stamps (e.g. a rotated arXiv identifier), since that text is
-    intentionally dropped from the reflowed output and callers need it to
-    record the exclusion for word-fidelity checking."""
+    excluded. Also returns the text of blocks excluded as header/footer (e.g.
+    a running page-number stamp) or rotated margin stamps (e.g. a rotated
+    arXiv identifier), since that text is intentionally dropped from the
+    reflowed output and callers need it to record the exclusion for
+    word-fidelity checking."""
     d = page.get_text("dict")
     out = []
     stamp_texts = []
@@ -49,6 +50,7 @@ def get_text_blocks(page: fitz.Page) -> tuple[list[dict], list[str]]:
         if bbox.width <= 0 or bbox.height <= 0:
             continue
         if _is_header_footer(bbox, page.rect):
+            stamp_texts.append(_block_text(b))
             continue
         if _is_rotated_margin_stamp(bbox):
             stamp_texts.append(_block_text(b))
