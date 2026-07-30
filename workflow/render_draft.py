@@ -4,7 +4,7 @@ fixed-height output pages) and the bbox-overlay debug PDF."""
 import fitz
 
 from lib import config
-from lib.elements import Element, PageLayout
+from lib.elements import Element, Kind, PageLayout
 
 
 def scaled_height(el: Element, target_width: float) -> float:
@@ -40,6 +40,15 @@ def plan_pagination(
             current = []
             y_cursor = 0.0
 
+        if el.kind == Kind.PAGE_BREAK and not current and pages:
+            # Would otherwise land alone at the top of a new output page --
+            # glue it to the bottom of the page it's closing instead, even
+            # if that means slightly overflowing the usable height.
+            prev_page = pages[-1]
+            prev_y = max(yo + hh for _, yo, hh in prev_page)
+            prev_page.append((el, prev_y + gap, h))
+            continue
+
         y_offset = 0.0 if not current else y_cursor + gap
         current.append((el, y_offset, h))
         y_cursor = y_offset + h
@@ -48,6 +57,24 @@ def plan_pagination(
         pages.append(current)
 
     return pages
+
+
+def draw_page_break_marker(
+    page: fitz.Page, el: Element, margin: float, y_offset: float, width: float, height: float
+) -> None:
+    """Render a subtle 'page N' label + light gray rule marking where the
+    original source PDF's page boundary fell in the reading order."""
+    text_y = margin + y_offset + height * 0.65
+    line_y = margin + y_offset + height * 0.85
+    page.insert_text(
+        (margin, text_y), el.text, fontsize=config.PAGE_BREAK_FONT_SIZE, color=config.PAGE_BREAK_TEXT_COLOR
+    )
+    page.draw_line(
+        (margin, line_y),
+        (margin + width, line_y),
+        color=config.PAGE_BREAK_LINE_COLOR,
+        width=config.PAGE_BREAK_LINE_WIDTH,
+    )
 
 
 def render_draft(
@@ -66,6 +93,9 @@ def render_draft(
         content_height = max(y_offset + h for _, y_offset, h in page_items)
         out_page = out_doc.new_page(width=page_width, height=content_height + 2 * margin)
         for el, y_offset, h in page_items:
+            if el.kind == Kind.PAGE_BREAK:
+                draw_page_break_marker(out_page, el, margin, y_offset, target_width, h)
+                continue
             src_page = src_doc[el.page_no]
             clip = fitz.Rect(*el.padded_bbox.as_tuple())
             zoom = config.DRAFT_DPI / 72.0

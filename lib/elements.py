@@ -19,6 +19,7 @@ class Kind(Enum):
     EQUATION = "equation"
     GRAPHIC = "graphic"  # unmatched drawing cluster
     OTHER = "other"
+    PAGE_BREAK = "page_break"  # synthetic marker, not detected from the source PDF
 
 
 @dataclass

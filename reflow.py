@@ -11,7 +11,7 @@ import sys
 import fitz
 
 from lib.layout import build_page_layout, pad_and_snap_bboxes
-from workflow.reading_order import build_reading_order
+from workflow.reading_order import build_reading_order, insert_page_breaks
 from workflow.render_draft import render_draft, render_overlay
 from workflow.render_final import render_final
 
@@ -34,7 +34,7 @@ def run(input_path: str, output_path: str) -> None:
     for layout in page_layouts:
         warnings.extend(pad_and_snap_bboxes(layout, src_doc[layout.page_no].rect))
 
-    sequence = build_reading_order(page_layouts)
+    sequence = insert_page_breaks(build_reading_order(page_layouts))
 
     out_path = pathlib.Path(output_path)
     draft_path = out_path.with_suffix(".draft.pdf")

@@ -5,8 +5,8 @@ so the output stays real vector content (selectable text, crisp figures)."""
 import fitz
 
 from lib import config
-from lib.elements import Element
-from workflow.render_draft import plan_pagination
+from lib.elements import Element, Kind
+from workflow.render_draft import draw_page_break_marker, plan_pagination
 
 
 def render_final(
@@ -25,6 +25,9 @@ def render_final(
         content_height = max(y_offset + h for _, y_offset, h in page_items)
         out_page = out_doc.new_page(width=page_width, height=content_height + 2 * margin)
         for el, y_offset, h in page_items:
+            if el.kind == Kind.PAGE_BREAK:
+                draw_page_break_marker(out_page, el, margin, y_offset, target_width, h)
+                continue
             clip = fitz.Rect(*el.padded_bbox.as_tuple())
             rect = fitz.Rect(margin, margin + y_offset, margin + target_width, margin + y_offset + h)
             out_page.show_pdf_page(rect, src_doc, el.page_no, clip=clip)
