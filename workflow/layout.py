@@ -889,6 +889,32 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
                     break
             padded[i] = bi
 
+    # Final pass: when two elements' *tight* bboxes already overlap (common:
+    # PyMuPDF block bboxes include ascender/descender space that bleeds into
+    # a neighboring line), the loop above can't snap the overlap away
+    # without cutting into real content, and stops early with both padded
+    # bboxes still overlapping. render_final clips per element via
+    # padded_bbox, so an unresolved overlap there means the sliver of
+    # source content in the shared strip -- typically a descender like a
+    # 'y' or 'g' -- gets painted twice, once per element. Split any
+    # remaining vertical overlap straight down the middle instead: a
+    # symmetric hairline clip into each element's tight bbox is a smaller
+    # defect than a duplicated glyph.
+    for i in range(n):
+        for j in range(i + 1, n):
+            if elements[i].column != elements[j].column:
+                continue
+            bi, bj = padded[i], padded[j]
+            if not bi.intersects(bj):
+                continue
+            top, bot = (i, j) if bi.y0 <= bj.y0 else (j, i)
+            bt, bb_ = padded[top], padded[bot]
+            if bt.y1 <= bb_.y0:
+                continue
+            mid = (bb_.y0 + bt.y1) / 2
+            padded[top] = Bbox(bt.x0, bt.y0, bt.x1, mid)
+            padded[bot] = Bbox(bb_.x0, mid, bb_.x1, bb_.y1)
+
     for el, bb in zip(elements, padded):
         el.padded_bbox = bb
 
