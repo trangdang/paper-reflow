@@ -55,6 +55,10 @@ CAPTION_MAX_X_GAP_PT = (
     10.0  # cluster/caption must horizontally overlap (within this tolerance) to be matched
 )
 MIN_DRAWING_CLUSTER_AREA_PT2 = 20.0 * 20.0
+# Drawings that are stroke-free, fully opaque, near-pure-white fills are invisible on a white
+# page (e.g. leftover boxed-equation template artifacts) but still register as "figure" content
+# to naive area-based clustering -- filter them out before clustering.
+WHITE_FILL_MIN_COMPONENT = 0.95  # each RGB component must be at least this to count as "white"
 
 # --- Table rule-line detection ---
 # Ruled table borders are drawn as thin stroked lines (zero-width or
@@ -66,6 +70,12 @@ TABLE_RULE_CLUSTER_GAP_PT = (
 TABLE_RULE_MIN_LINES = 6  # min rule fragments required before a cluster counts as a ruled table
 TABLE_RULE_MIN_DISTINCT_VERTICALS = (
     5  # min distinct vertical rule x-positions (column ticks) required
+)
+TABLE_RULE_FULL_WIDTH_FRACTION = (
+    0.9  # a horizontal rule must span at least this fraction of the region's width to count
+)
+TABLE_RULE_MIN_FULL_WIDTH_LINES = (
+    3  # min distinct full-width horizontal rules (e.g. header/inter-row/bottom) required
 )
 
 # --- Bbox padding / snapping ---

@@ -381,6 +381,22 @@ def _table_rule_regions(page: fitz.Page) -> list[Bbox]:
         bbox = lines[group[0]]
         for idx in group[1:]:
             bbox = bbox.union(lines[idx])
+        # A decorative box drawn around a whole example/equation (2 long
+        # horizontal lines: top + bottom) can still rack up enough fragments
+        # and distinct vertical positions to pass the checks above if
+        # unrelated short marks (underlines, diacritics on math symbols)
+        # happen to fall within clustering distance along its height -- a
+        # real ruled table has multiple full-width separator rules (header,
+        # inter-row, bottom), not just a top/bottom pair, so require several
+        # distinct full-width horizontal rules before trusting the region.
+        full_width_ys = {
+            round(lines[i].y0, 1)
+            for i in group
+            if lines[i].height == 0
+            and lines[i].width >= config.TABLE_RULE_FULL_WIDTH_FRACTION * bbox.width
+        }
+        if len(full_width_ys) < config.TABLE_RULE_MIN_FULL_WIDTH_LINES:
+            continue
         regions.append(bbox)
     return regions
 
@@ -456,15 +472,61 @@ def _merge_table_rule_regions(
     return elements
 
 
+def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.Rect) -> set[int]:
+    """Identify stroke-free, pure-white-filled rects that are stale leftovers (e.g. from a
+    boxed-equation LaTeX template), not intentional page content. A white fill alone isn't enough
+    to tell: real boxed content (e.g. an "Example N" box) is commonly built from a white
+    background rect plus separate stroked border lines, and that background rect's bbox is what
+    the layout pipeline elsewhere relies on to delineate the box -- treating every white fill as
+    invisible would strip that too and let unrelated neighboring content (e.g. a nearby figure)
+    bleed into the box's element.
+
+    What actually marks a rect as a stale artifact rather than a real, once-off background: the
+    same LaTeX macro stamps out one per equation instance regardless of whether that instance is
+    actually meant to be boxed, so they recur at an identical size across the page -- and because
+    their position is computed relative to the (unboxed) equation rather than the page, at least
+    one copy typically ends up mispositioned off the physical page. A real content background is
+    both on-page and unique in size (no reason for two unrelated boxes to be pixel-identical)."""
+    candidates = []
+    for i, d in enumerate(drawings):
+        r = d.get("rect")
+        if r is None or r.width <= 0 or r.height <= 0:
+            continue
+        if d.get("color") is not None:
+            continue  # has a stroke, so it's visible
+        fill = d.get("fill")
+        if fill is None or not all(c >= config.WHITE_FILL_MIN_COMPONENT for c in fill):
+            continue
+        candidates.append((i, r))
+
+    by_size: dict[tuple[float, float], list[tuple[int, fitz.Rect]]] = {}
+    for i, r in candidates:
+        by_size.setdefault((round(r.width, 1), round(r.height, 1)), []).append((i, r))
+
+    def is_off_page(r: fitz.Rect) -> bool:
+        return (
+            r.x0 < page_rect.x0 or r.y0 < page_rect.y0 or r.x1 > page_rect.x1 or r.y1 > page_rect.y1
+        )
+
+    artifact_indices: set[int] = set()
+    for items in by_size.values():
+        if len(items) >= 2 and any(is_off_page(r) for _, r in items):
+            artifact_indices.update(i for i, _ in items)
+    return artifact_indices
+
+
 def _cluster_drawings(page: fitz.Page) -> list[Bbox]:
     """Greedy union-find style clustering of drawing rects by proximity."""
     drawings = page.get_drawings()
+    artifact_idx = _find_invisible_white_fill_artifacts(drawings, page.rect)
     rects = []
-    for d in drawings:
+    for i, d in enumerate(drawings):
         r = d.get("rect")
         if r is None:
             continue
         if r.width <= 0 or r.height <= 0:
+            continue
+        if i in artifact_idx:
             continue
         rects.append(Bbox(r.x0, r.y0, r.x1, r.y1))
 
@@ -617,6 +679,21 @@ def _complete_undersized_elements(elements: list[Element], page_width: float) ->
             best_j, best_dist = None, None
             for j, other in enumerate(elements):
                 if j == i:
+                    continue
+                # A real column boundary (LEFT vs RIGHT) is only worth
+                # crossing when the neighbor is itself an incomplete
+                # fragment -- two narrow halves split by the gutter are
+                # plausibly one logical element. A neighbor that's already
+                # column-width-complete on its own (e.g. an entire column of
+                # legitimately narrower boxed/indented content) is real,
+                # unrelated content, not a continuation fragment: merging
+                # into it would force-label an entire other column SPANNING.
+                if (
+                    el.column != other.column
+                    and el.column in (Column.LEFT, Column.RIGHT)
+                    and other.column in (Column.LEFT, Column.RIGHT)
+                    and other.bbox.width >= min_width
+                ):
                     continue
                 dist = _rect_gap(el.bbox, other.bbox)
                 if dist <= max_gap and (best_dist is None or dist < best_dist):
