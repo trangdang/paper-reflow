@@ -33,10 +33,15 @@ def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
     return (in_top or in_bottom) and small
 
 
-def get_text_blocks(page: fitz.Page) -> list[dict]:
-    """Text blocks (type==0) from get_text('dict'), with header/footer blocks excluded."""
+def get_text_blocks(page: fitz.Page) -> tuple[list[dict], list[str]]:
+    """Text blocks (type==0) from get_text('dict'), with header/footer blocks
+    excluded. Also returns the text of blocks excluded as rotated margin
+    stamps (e.g. a rotated arXiv identifier), since that text is
+    intentionally dropped from the reflowed output and callers need it to
+    record the exclusion for word-fidelity checking."""
     d = page.get_text("dict")
     out = []
+    stamp_texts = []
     for b in d["blocks"]:
         if b["type"] != 0:
             continue
@@ -46,9 +51,10 @@ def get_text_blocks(page: fitz.Page) -> list[dict]:
         if _is_header_footer(bbox, page.rect):
             continue
         if _is_rotated_margin_stamp(bbox):
+            stamp_texts.append(_block_text(b))
             continue
         out.append(b)
-    return out
+    return out, stamp_texts
 
 
 def _is_rotated_margin_stamp(bbox: Bbox) -> bool:
@@ -666,7 +672,7 @@ def _reclassify_ambiguous_width_band(
 def build_page_layout(
     page: fitz.Page, page_no: int, gutter_width_override: float | None = None
 ) -> PageLayout:
-    text_blocks = get_text_blocks(page)
+    text_blocks, excluded_texts = get_text_blocks(page)
     is_two_col, left_col_x, right_col_x, gutter_x = detect_gutter(page, text_blocks)
     if is_two_col and gutter_width_override is not None:
         # Per-page gutter detection is noisy: a page whose narrow-block
@@ -779,6 +785,7 @@ def build_page_layout(
         gutter_x=gutter_x,
         is_two_column=is_two_col,
         elements=elements,
+        excluded_texts=excluded_texts,
     )
 
 

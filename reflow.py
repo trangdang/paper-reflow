@@ -4,12 +4,14 @@ reflow. Always writes a bbox-overlay debug PDF alongside the requested
 output."""
 
 import argparse
+import json
 import pathlib
 import statistics
 import sys
 
 import fitz
 
+from lib.elements import Kind
 from workflow.layout import build_page_layout, pad_and_snap_bboxes
 from workflow.reading_order import build_reading_order, insert_page_breaks
 from workflow.render_final import render_final
@@ -44,9 +46,24 @@ def run(input_path: str, output_path: str) -> None:
     out_path = pathlib.Path(output_path)
     overlay_path = out_path.with_suffix(".debug-bboxes.pdf")
     warnings_path = out_path.with_suffix(".warnings.log")
+    fidelity_path = out_path.with_suffix(".fidelity-exclusions.json")
 
     render_overlay(src_doc, page_layouts, str(overlay_path))
     render_final(src_doc, sequence, str(output_path))
+
+    # Word-fidelity nuisance diffs: text that's *supposed* to differ between
+    # source and output. Recorded here (where the decisions are actually
+    # made) so check_text_fidelity.py can exclude them instead of flagging
+    # them as dropped/extra content.
+    fidelity_exclusions = {
+        # Present in the source but deliberately not carried into the
+        # output (e.g. a rotated arXiv identifier stamp in the margin).
+        "excluded_source_text": [text for layout in page_layouts for text in layout.excluded_texts],
+        # Present in the output but not in the source (synthetic "Page N"
+        # section separators inserted at each source-page boundary).
+        "inserted_output_text": [el.text for el in sequence if el.kind == Kind.PAGE_BREAK],
+    }
+    fidelity_path.write_text(json.dumps(fidelity_exclusions, indent=2) + "\n")
 
     if warnings:
         warnings_path.write_text("\n".join(warnings) + "\n")
@@ -56,6 +73,7 @@ def run(input_path: str, output_path: str) -> None:
 
     print(f"[paper-reflow] wrote {output_path}")
     print(f"[paper-reflow] wrote {overlay_path}")
+    print(f"[paper-reflow] wrote {fidelity_path}")
 
 
 def main():

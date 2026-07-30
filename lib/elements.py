@@ -84,3 +84,8 @@ class PageLayout:
     gutter_x: tuple[float, float] | None
     is_two_column: bool
     elements: list[Element] = field(default_factory=list)
+    # Text of blocks intentionally dropped from the reading order (e.g. a
+    # rotated arXiv identifier stamp) -- not part of the reflow output, but
+    # recorded so word-fidelity checking can exclude them from the source
+    # side of the comparison instead of flagging them as dropped content.
+    excluded_texts: list[str] = field(default_factory=list)
