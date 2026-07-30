@@ -67,7 +67,10 @@ def draw_page_break_marker(
     text_y = margin + y_offset + height * 0.65
     line_y = margin + y_offset + height * 0.85
     page.insert_text(
-        (margin, text_y), el.text, fontsize=config.PAGE_BREAK_FONT_SIZE, color=config.PAGE_BREAK_TEXT_COLOR
+        (margin, text_y),
+        el.text,
+        fontsize=config.PAGE_BREAK_FONT_SIZE,
+        color=config.PAGE_BREAK_TEXT_COLOR,
     )
     page.draw_line(
         (margin, line_y),
@@ -100,7 +103,9 @@ def render_draft(
             clip = fitz.Rect(*el.padded_bbox.as_tuple())
             zoom = config.DRAFT_DPI / 72.0
             pix = src_page.get_pixmap(clip=clip, matrix=fitz.Matrix(zoom, zoom))
-            rect = fitz.Rect(margin, margin + y_offset, margin + target_width, margin + y_offset + h)
+            rect = fitz.Rect(
+                margin, margin + y_offset, margin + target_width, margin + y_offset + h
+            )
             out_page.insert_image(rect, pixmap=pix)
 
     out_doc.save(output_path)
@@ -119,7 +124,9 @@ _KIND_COLORS = {
 }
 
 
-def render_overlay(src_doc: fitz.Document, page_layouts: list[PageLayout], output_path: str) -> None:
+def render_overlay(
+    src_doc: fitz.Document, page_layouts: list[PageLayout], output_path: str
+) -> None:
     """Debug PDF: original pages with tight (dashed color) + padded (solid
     black) element bboxes and kind/column labels drawn on."""
     out_doc = fitz.open()
@@ -131,7 +138,10 @@ def render_overlay(src_doc: fitz.Document, page_layouts: list[PageLayout], outpu
         if layout.gutter_x:
             gx0, gx1 = layout.gutter_x
             out_page.draw_rect(
-                fitz.Rect(gx0, 0, gx1, src_page.rect.height), color=(1, 1, 0), fill=(1, 1, 0), fill_opacity=0.2
+                fitz.Rect(gx0, 0, gx1, src_page.rect.height),
+                color=(1, 1, 0),
+                fill=(1, 1, 0),
+                fill_opacity=0.2,
             )
 
         for el in layout.elements:
@@ -142,7 +152,9 @@ def render_overlay(src_doc: fitz.Document, page_layouts: list[PageLayout], outpu
                     fitz.Rect(*el.padded_bbox.as_tuple()), color=color, width=0.5, dashes="[2] 0"
                 )
             label = f"{el.kind.value}/{el.column.value}"
-            out_page.insert_text((el.bbox.x0, max(8, el.bbox.y0 - 2)), label, fontsize=6, color=color)
+            out_page.insert_text(
+                (el.bbox.x0, max(8, el.bbox.y0 - 2)), label, fontsize=6, color=color
+            )
 
     out_doc.save(output_path)
     out_doc.close()

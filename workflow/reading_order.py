@@ -19,15 +19,9 @@ def order_page(elements: list[Element]) -> list[Element]:
     there's nothing to interleave against).
     """
     left = sorted((e for e in elements if e.column == Column.LEFT), key=lambda e: e.y0)
-    right = sorted(
-        (e for e in elements if e.column == Column.RIGHT), key=lambda e: e.y0
-    )
-    spanning = sorted(
-        (e for e in elements if e.column == Column.SPANNING), key=lambda e: e.y0
-    )
-    single = sorted(
-        (e for e in elements if e.column == Column.SINGLE), key=lambda e: e.y0
-    )
+    right = sorted((e for e in elements if e.column == Column.RIGHT), key=lambda e: e.y0)
+    spanning = sorted((e for e in elements if e.column == Column.SPANNING), key=lambda e: e.y0)
+    single = sorted((e for e in elements if e.column == Column.SINGLE), key=lambda e: e.y0)
 
     if single and not left and not right and not spanning:
         return single

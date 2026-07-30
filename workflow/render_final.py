@@ -29,7 +29,9 @@ def render_final(
                 draw_page_break_marker(out_page, el, margin, y_offset, target_width, h)
                 continue
             clip = fitz.Rect(*el.padded_bbox.as_tuple())
-            rect = fitz.Rect(margin, margin + y_offset, margin + target_width, margin + y_offset + h)
+            rect = fitz.Rect(
+                margin, margin + y_offset, margin + target_width, margin + y_offset + h
+            )
             out_page.show_pdf_page(rect, src_doc, el.page_no, clip=clip)
 
     out_doc.save(output_path, garbage=4, deflate=True)

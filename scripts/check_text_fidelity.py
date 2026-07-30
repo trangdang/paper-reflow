@@ -23,7 +23,9 @@ def extract_words(path: str) -> Counter:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Diff word multisets between source and reflowed PDF.")
+    parser = argparse.ArgumentParser(
+        description="Diff word multisets between source and reflowed PDF."
+    )
     parser.add_argument("source")
     parser.add_argument("output")
     args = parser.parse_args()
@@ -43,7 +45,9 @@ def main():
         for w, c in missing.most_common(30):
             print(f"  {w!r}: -{c}")
     if extra:
-        print(f"\nEXTRA/DUPLICATED ({sum(extra.values())} occurrences, {len(extra)} distinct words):")
+        print(
+            f"\nEXTRA/DUPLICATED ({sum(extra.values())} occurrences, {len(extra)} distinct words):"
+        )
         for w, c in extra.most_common(30):
             print(f"  {w!r}: +{c}")
 

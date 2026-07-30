@@ -29,6 +29,10 @@ uv run pytest tests/test_foo.py::test_name   # single test
 # word multiset as the source (catches glyph-cutting/gutter-clip bugs
 # where text gets dropped, duplicated, or truncated)
 uv run scripts/check_text_fidelity.py <source.pdf> <output.pdf>
+
+# Lint / format (ruff, 100-char lines; see [tool.ruff] in pyproject.toml)
+uv run ruff check .
+uv run ruff format .
 ```
 
 There are currently no test files under `tests/` — `sample-papers/micro_lie.pdf`

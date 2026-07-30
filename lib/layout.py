@@ -19,14 +19,17 @@ def _block_bbox(block: dict) -> Bbox:
 
 
 def _block_text(block: dict) -> str:
-    return "".join(s["text"] for l in block["lines"] for s in l["spans"])
+    return "".join(s["text"] for line in block["lines"] for s in line["spans"])
 
 
 def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
     band = config.HEADER_FOOTER_BAND_FRACTION * page_rect.height
     in_top = bbox.y1 <= band
     in_bottom = bbox.y0 >= page_rect.height - band
-    small = bbox.height < config.HEADER_FOOTER_MAX_HEIGHT_PT and bbox.width < config.HEADER_FOOTER_MAX_WIDTH_PT
+    small = (
+        bbox.height < config.HEADER_FOOTER_MAX_HEIGHT_PT
+        and bbox.width < config.HEADER_FOOTER_MAX_WIDTH_PT
+    )
     return (in_top or in_bottom) and small
 
 
@@ -55,7 +58,9 @@ def _is_rotated_margin_stamp(bbox: Bbox) -> bool:
     return bbox.width < 25.0 and bbox.height > 100.0
 
 
-def detect_gutter(page: fitz.Page, blocks: list[dict]) -> tuple[bool, tuple | None, tuple | None, tuple | None]:
+def detect_gutter(
+    page: fitz.Page, blocks: list[dict]
+) -> tuple[bool, tuple | None, tuple | None, tuple | None]:
     """Detect the two-column gutter for a page.
 
     Returns (is_two_column, left_col_x, right_col_x, gutter_x).
@@ -320,7 +325,13 @@ def _merge_dense_text_clusters(
         for i in orig_indices:
             used.add(i)
         merged.append(
-            Element(kind=Kind.TABLE, page_no=-1, column=Column.SPANNING, bbox=bbox, text=" ".join(text_parts))
+            Element(
+                kind=Kind.TABLE,
+                page_no=-1,
+                column=Column.SPANNING,
+                bbox=bbox,
+                text=" ".join(text_parts),
+            )
         )
     return merged
 
@@ -367,7 +378,12 @@ def _table_rule_regions(page: fitz.Page) -> list[Bbox]:
 
 
 def _merge_table_rule_regions(
-    elements: list[Element], page: fitz.Page, page_no: int, is_two_col: bool, left_col_x, right_col_x
+    elements: list[Element],
+    page: fitz.Page,
+    page_no: int,
+    is_two_col: bool,
+    left_col_x,
+    right_col_x,
 ) -> list[Element]:
     """Fold every element overlapping a detected ruled-table frame -- the
     header row, data rows (however many fragments they landed in), and a
@@ -416,7 +432,9 @@ def _merge_table_rule_regions(
                 text_parts.append(el.text)
             source_refs.extend(el.source_refs)
 
-        column = classify_block(merged_bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        column = (
+            classify_block(merged_bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        )
         merged_el = Element(
             kind=Kind.TABLE,
             page_no=page_no,
@@ -620,7 +638,9 @@ def _complete_undersized_elements(elements: list[Element], page_width: float) ->
     return elements
 
 
-def _reclassify_ambiguous_width_band(elements: list[Element], is_two_col: bool, left_col_x, right_col_x) -> None:
+def _reclassify_ambiguous_width_band(
+    elements: list[Element], is_two_col: bool, left_col_x, right_col_x
+) -> None:
     """An element noticeably wider than this page's own single column but
     still well short of the full two-column span can't cleanly fit in one
     column and isn't confidently spanning either -- force it to SPANNING
@@ -643,7 +663,9 @@ def _reclassify_ambiguous_width_band(elements: list[Element], is_two_col: bool, 
             el.column = Column.SPANNING
 
 
-def build_page_layout(page: fitz.Page, page_no: int, gutter_width_override: float | None = None) -> PageLayout:
+def build_page_layout(
+    page: fitz.Page, page_no: int, gutter_width_override: float | None = None
+) -> PageLayout:
     text_blocks = get_text_blocks(page)
     is_two_col, left_col_x, right_col_x, gutter_x = detect_gutter(page, text_blocks)
     if is_two_col and gutter_width_override is not None:
@@ -718,7 +740,9 @@ def build_page_layout(page: fitz.Page, page_no: int, gutter_width_override: floa
     gap = 2 * config.VERTICAL_PAD_PT
     for el in _merge_dense_text_clusters(text_blocks, used_text_idx, gap):
         el.page_no = page_no
-        el.column = classify_block(el.bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        el.column = (
+            classify_block(el.bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        )
         elements.append(el)
 
     # Remaining text blocks -> paragraphs / headings.
@@ -738,7 +762,9 @@ def build_page_layout(page: fitz.Page, page_no: int, gutter_width_override: floa
         kind = Kind.HEADING if is_spanning and _is_heading(b, body_font_size) else Kind.PARAGRAPH
         elements.append(Element(kind=kind, page_no=page_no, column=column, bbox=bbox, text=text))
 
-    elements = _merge_table_rule_regions(elements, page, page_no, is_two_col, left_col_x, right_col_x)
+    elements = _merge_table_rule_regions(
+        elements, page, page_no, is_two_col, left_col_x, right_col_x
+    )
     elements = _merge_adjacent_paragraphs(elements, median_line_height)
     elements = _merge_overlapping_same_column_elements(elements)
     elements = _complete_undersized_elements(elements, page.rect.width)
@@ -757,6 +783,7 @@ def build_page_layout(page: fitz.Page, page_no: int, gutter_width_override: floa
 
 
 # --- Bbox padding / whitespace-snapping (Milestone 4) ---
+
 
 def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
     """Compute padded/snapped clip bboxes for every element on a page.
@@ -831,9 +858,19 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
             guard = 0
             while bi.intersects(bj) and guard < 1000:
                 guard += 1
-                if bi.y1 > bj.y0 and bi.y0 < bj.y0 and bi.y1 <= bj.y1 and bi.y1 - step >= tight_i.y1:
+                if (
+                    bi.y1 > bj.y0
+                    and bi.y0 < bj.y0
+                    and bi.y1 <= bj.y1
+                    and bi.y1 - step >= tight_i.y1
+                ):
                     bi = Bbox(bi.x0, bi.y0, bi.x1, bi.y1 - step)
-                elif bi.y0 < bj.y1 and bi.y1 > bj.y1 and bi.y0 >= bj.y0 and bi.y0 + step <= tight_i.y0:
+                elif (
+                    bi.y0 < bj.y1
+                    and bi.y1 > bj.y1
+                    and bi.y0 >= bj.y0
+                    and bi.y0 + step <= tight_i.y0
+                ):
                     bi = Bbox(bi.x0, bi.y0 + step, bi.x1, bi.y1)
                 elif bi.x1 > bj.x0 and bi.x0 < bj.x0 and bi.x1 - step >= tight_i.x1:
                     bi = Bbox(bi.x0, bi.y0, bi.x1 - step, bi.y1)
@@ -850,7 +887,9 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
     tol = config.BBOX_OVERLAP_TOLERANCE_PT
     for i in range(n):
         for j in range(i + 1, n):
-            padded_overlap = elements[i].padded_bbox.intersects(elements[j].padded_bbox, tolerance=tol)
+            padded_overlap = elements[i].padded_bbox.intersects(
+                elements[j].padded_bbox, tolerance=tol
+            )
             tight_overlap = elements[i].bbox.intersects(elements[j].bbox, tolerance=tol)
             # Only warn when padding introduced overlap that wasn't already
             # present in the source tight bboxes — that's the case snapping

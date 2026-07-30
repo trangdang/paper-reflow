@@ -25,10 +25,15 @@ def run(input_path: str, output_path: str) -> None:
     # document-wide consensus width so every page's column split is
     # consistent.
     probe_layouts = [build_page_layout(src_doc[i], i) for i in range(len(src_doc))]
-    gutter_widths = [round(pl.gutter_x[1] - pl.gutter_x[0], 3) for pl in probe_layouts if pl.gutter_x]
+    gutter_widths = [
+        round(pl.gutter_x[1] - pl.gutter_x[0], 3) for pl in probe_layouts if pl.gutter_x
+    ]
     gutter_width = statistics.mode(gutter_widths) if gutter_widths else None
 
-    page_layouts = [build_page_layout(src_doc[i], i, gutter_width_override=gutter_width) for i in range(len(src_doc))]
+    page_layouts = [
+        build_page_layout(src_doc[i], i, gutter_width_override=gutter_width)
+        for i in range(len(src_doc))
+    ]
 
     warnings: list[str] = []
     for layout in page_layouts:
@@ -47,7 +52,9 @@ def run(input_path: str, output_path: str) -> None:
 
     if warnings:
         warnings_path.write_text("\n".join(warnings) + "\n")
-        print(f"[paper-reflow] {len(warnings)} warning(s) written to {warnings_path}", file=sys.stderr)
+        print(
+            f"[paper-reflow] {len(warnings)} warning(s) written to {warnings_path}", file=sys.stderr
+        )
 
     print(f"[paper-reflow] wrote {output_path}")
     print(f"[paper-reflow] wrote {draft_path}")
@@ -55,7 +62,9 @@ def run(input_path: str, output_path: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Reflow a two-column academic PDF for phone screens.")
+    parser = argparse.ArgumentParser(
+        description="Reflow a two-column academic PDF for phone screens."
+    )
     parser.add_argument("input", help="path to source two-column PDF")
     parser.add_argument("output", help="path to write the final reflowed PDF")
     args = parser.parse_args()
