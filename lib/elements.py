@@ -84,6 +84,11 @@ class PageLayout:
     gutter_x: tuple[float, float] | None
     is_two_column: bool
     elements: list[Element] = field(default_factory=list)
+    # (top, bottom) y-range body content is confined to -- below the running
+    # header strip, above the footer strip. Element bboxes are clipped to it
+    # so figures/graphics don't bleed into the reserved header/footer bands.
+    # None on pages with no detected bands (e.g. the first page).
+    content_band: tuple[float, float] | None = None
     # Text of blocks intentionally dropped from the reading order (e.g. a
     # rotated arXiv identifier stamp) -- not part of the reflow output, but
     # recorded so word-fidelity checking can exclude them from the source

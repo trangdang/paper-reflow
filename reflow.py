@@ -12,7 +12,7 @@ import sys
 import fitz
 
 from lib.elements import Kind
-from workflow.layout import build_page_layout, pad_and_snap_bboxes
+from workflow.layout import build_page_layout, detect_content_bands, pad_and_snap_bboxes
 from workflow.reading_order import build_reading_order, insert_page_breaks
 from workflow.render_final import render_final
 from workflow.render_overlay import render_overlay
@@ -32,8 +32,19 @@ def run(input_path: str, output_path: str) -> None:
     ]
     gutter_width = statistics.mode(gutter_widths) if gutter_widths else None
 
+    # Running header/footer strips are a fixed-height document constant (see
+    # detect_content_bands). Their text is dropped from the output and
+    # figures/graphics are kept from bleeding into them. The band is measured
+    # excluding the first page (its masthead differs) but applied to every
+    # page, so a first-page running head matching the rest is still caught.
+    content_band = detect_content_bands(src_doc)
     page_layouts = [
-        build_page_layout(src_doc[i], i, gutter_width_override=gutter_width)
+        build_page_layout(
+            src_doc[i],
+            i,
+            gutter_width_override=gutter_width,
+            content_band=content_band,
+        )
         for i in range(len(src_doc))
     ]
 

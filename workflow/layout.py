@@ -22,24 +22,159 @@ def _block_text(block: dict) -> str:
     return "".join(s["text"] for line in block["lines"] for s in line["spans"])
 
 
-def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
-    band = config.HEADER_FOOTER_BAND_FRACTION * page_rect.height
-    in_top = bbox.y1 <= band
-    in_bottom = bbox.y0 >= page_rect.height - band
-    small = (
+def _is_small_stamp(bbox: Bbox) -> bool:
+    return (
         bbox.height < config.HEADER_FOOTER_MAX_HEIGHT_PT
         and bbox.width < config.HEADER_FOOTER_MAX_WIDTH_PT
     )
-    return (in_top or in_bottom) and small
 
 
-def get_text_blocks(page: fitz.Page) -> tuple[list[dict], list[str]]:
+def _header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
+    """Classify bbox as a top ("header") or bottom ("footer") running stamp
+    (page number / running head), or None if it isn't one. Same size/position
+    test as the stripping in get_text_blocks, but reports which band so the
+    document-wide content-band consensus can be built per side."""
+    band = config.HEADER_FOOTER_BAND_FRACTION * page_rect.height
+    if not _is_small_stamp(bbox):
+        return None
+    if bbox.y1 <= band:
+        return "header"
+    if bbox.y0 >= page_rect.height - band:
+        return "footer"
+    return None
+
+
+def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
+    return _header_footer_stamp(bbox, page_rect) is not None
+
+
+def _norm_running(text: str) -> str:
+    """Letters-only, lowercased form of a block's text, for running-head/footer
+    repetition matching. The per-page page number and all punctuation drop out,
+    so 'Glauz and Harwood 7' and 'Glauz and Harwood' both reduce to
+    'glauzandharwood', and a copyright line's varying page-number suffix
+    ('...IEEE.784' vs '...IEEE.') reduces to a stable 'ieee'."""
+    return "".join(c for c in text.lower() if c.isalpha())
+
+
+def _text_blocks_with_bbox(page: fitz.Page):
+    for b in page.get_text("dict")["blocks"]:
+        if b["type"] != 0:
+            continue
+        bbox = _block_bbox(b)
+        if bbox.width <= 0 or bbox.height <= 0:
+            continue
+        yield b, bbox
+
+
+def detect_content_bands(pages) -> tuple[float, float]:
+    """Document-wide vertical content band: the (header_bottom, footer_top)
+    y-range that body content is confined to, i.e. below the running header
+    strip and above the footer strip. Text blocks outside this band
+    (get_text_blocks) and figure/graphic clusters bleeding into it
+    (build_page_layout) are dropped or trimmed so running heads/footers stay
+    out of the output.
+
+    The strip is a fixed-height document constant, applied uniformly to every
+    page; the first page (index 0) carries a different masthead and is
+    excluded from the consensus (the band is still applied to it, catching a
+    first-page running head that matches the rest). Two signals feed the
+    band: small page-number stamps (_header_footer_stamp), and wider running
+    heads/footers detected by recurrence -- a block whose letters-only text
+    shows up near the same edge on RUNNING_HEAD_MIN_PAGES or more pages.
+    Recurrence, not mere position, is what tells a running head from a
+    one-off first-page title or a section heading sitting high on the page.
+
+    Header edge is 0.0 and footer edge is page height when nothing is
+    detected."""
+    if not len(pages):
+        height = 0.0
+    else:
+        # Sample heights across pages rather than trusting page 0 alone -- the
+        # first page often has bespoke title-page spacing (or, rarely, a
+        # differently sized page), so it's excluded from the consensus
+        # whenever there are enough other pages to form one.
+        sample = pages[1:] if len(pages) > 1 else pages
+        height = statistics.mode(p.rect.height for p in sample)
+    zone = config.HEADER_FOOTER_ZONE_FRACTION * height
+
+    # First pass: which normalized texts recur near the top (headers) / bottom
+    # (footers), counted by distinct page so a block repeated within one page
+    # doesn't self-qualify.
+    top_pages: dict[str, set] = {}
+    bot_pages: dict[str, set] = {}
+    for i, page in enumerate(pages):
+        for b, bbox in _text_blocks_with_bbox(page):
+            norm = _norm_running(_block_text(b))
+            if len(norm) < 2:
+                continue
+            if bbox.y1 <= zone:
+                top_pages.setdefault(norm, set()).add(i)
+            elif bbox.y0 >= height - zone:
+                bot_pages.setdefault(norm, set()).add(i)
+    top_recurring = {n for n, ps in top_pages.items() if len(ps) >= config.RUNNING_HEAD_MIN_PAGES}
+    bot_recurring = {n for n, ps in bot_pages.items() if len(ps) >= config.RUNNING_HEAD_MIN_PAGES}
+
+    # Second pass: measure the band extent from header/footer blocks. Three
+    # signals contribute:
+    #   * a small stamp within the tight 5% band (_header_footer_stamp) -- the
+    #     baseline page-number detector, all a document with no running head
+    #     (just page numbers, e.g. micro_lie) ever needs;
+    #   * a recurring running head/footer (letters-only text seen on several
+    #     pages in the zone);
+    #   * a page-number stamp (small, digit-only block) sitting in the wider
+    #     zone but below the 5% band -- but ONLY when a running head/footer
+    #     already defines that row. A page number often shares the running
+    #     head's row a little below the 5% band (a "9" at y~48), and the
+    #     band must reach it or the "9" survives as a body
+    #     element whose clip re-renders the running head. Gating this on an
+    #     established running head is what stops a lone small digit-ish math
+    #     fragment near a footer-less page edge from inventing a spurious band.
+    # First page excluded from the consensus.
+    have_header = bool(top_recurring)
+    have_footer = bool(bot_recurring)
+    tops: list[float] = []
+    bots: list[float] = []
+    for i, page in enumerate(pages):
+        if i == 0:
+            continue
+        for b, bbox in _text_blocks_with_bbox(page):
+            text = _block_text(b)
+            norm = _norm_running(text)
+            side = _header_footer_stamp(bbox, page.rect)
+            digit_stamp = _is_small_stamp(bbox) and norm == "" and any(c.isdigit() for c in text)
+            is_header = side == "header" or (
+                bbox.y1 <= zone and (norm in top_recurring or (have_header and digit_stamp))
+            )
+            in_footer_zone = bbox.y0 >= height - zone
+            is_footer = side == "footer" or (
+                in_footer_zone and (norm in bot_recurring or (have_footer and digit_stamp))
+            )
+            if is_header:
+                tops.append(bbox.y1)
+            elif is_footer:
+                bots.append(bbox.y0)
+    top = max(tops) if tops else 0.0
+    bot = min(bots) if bots else height
+    return top, bot
+
+
+def get_text_blocks(
+    page: fitz.Page, content_band: tuple[float, float] | None = None
+) -> tuple[list[dict], list[str]]:
     """Text blocks (type==0) from get_text('dict'), with header/footer blocks
-    excluded. Also returns the text of blocks excluded as header/footer (e.g.
-    a running page-number stamp) or rotated margin stamps (e.g. a rotated
-    arXiv identifier), since that text is intentionally dropped from the
-    reflowed output and callers need it to record the exclusion for
-    word-fidelity checking."""
+    excluded. Also returns the text of blocks excluded as header/footer (a
+    running page-number stamp, a running head/footer, etc.) or rotated margin
+    stamps (e.g. a rotated arXiv identifier), since that text is intentionally
+    dropped from the reflowed output and callers need it to record the
+    exclusion for word-fidelity checking.
+
+    `content_band` is the (header_bottom, footer_top) y-range of body content
+    for this page (see detect_content_bands). Any block lying entirely above
+    header_bottom or below footer_top is a running head/footer and is dropped
+    -- this is what removes the wide running heads (journal name, author list)
+    and footer boilerplate (copyright line) that the small-stamp test misses."""
+    header_bottom, footer_top = content_band or (0.0, page.rect.height)
     d = page.get_text("dict")
     out = []
     stamp_texts = []
@@ -50,6 +185,9 @@ def get_text_blocks(page: fitz.Page) -> tuple[list[dict], list[str]]:
         if bbox.width <= 0 or bbox.height <= 0:
             continue
         if _is_header_footer(bbox, page.rect):
+            stamp_texts.append(_block_text(b))
+            continue
+        if bbox.y1 <= header_bottom or bbox.y0 >= footer_top:
             stamp_texts.append(_block_text(b))
             continue
         if _is_rotated_margin_stamp(bbox):
@@ -800,9 +938,12 @@ def _reclassify_ambiguous_width_band(
 
 
 def build_page_layout(
-    page: fitz.Page, page_no: int, gutter_width_override: float | None = None
+    page: fitz.Page,
+    page_no: int,
+    gutter_width_override: float | None = None,
+    content_band: tuple[float, float] | None = None,
 ) -> PageLayout:
-    text_blocks, excluded_texts = get_text_blocks(page)
+    text_blocks, excluded_texts = get_text_blocks(page, content_band)
     is_two_col, left_col_x, right_col_x, gutter_x = detect_gutter(page, text_blocks)
     if is_two_col and gutter_width_override is not None:
         # Per-page gutter detection is noisy: a page whose narrow-block
@@ -919,6 +1060,27 @@ def build_page_layout(
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     _reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)
+
+    # Trim figure/graphic clusters that poke into the reserved header/footer
+    # bands so a too-tall drawing bbox doesn't overlap the running-head strip
+    # (its clip region would otherwise sweep the page number into the figure).
+    # Restricted to FIGURE/GRAPHIC on purpose: those carry no reflow text
+    # (they're rendered as vector clips), so trimming the strip crossing a band
+    # edge can't drop words. Text elements are deliberately left alone -- a
+    # wide running-head line commonly merges into the first body element, and
+    # clipping that merged element's top would cut real text out of the render.
+    # Only the crossing extremity is trimmed, and only when the element also
+    # reaches into the content region.
+    if content_band is not None:
+        band_top, band_bot = content_band
+        for el in elements:
+            if el.kind not in (Kind.FIGURE, Kind.GRAPHIC):
+                continue
+            bb = el.bbox
+            y0 = max(bb.y0, band_top) if bb.y1 > band_top else bb.y0
+            y1 = min(bb.y1, band_bot) if bb.y0 < band_bot else bb.y1
+            el.bbox = Bbox(bb.x0, y0, bb.x1, y1)
+
     elements.sort(key=lambda e: e.y0)
 
     return PageLayout(
@@ -928,6 +1090,7 @@ def build_page_layout(
         gutter_x=gutter_x,
         is_two_column=is_two_col,
         elements=elements,
+        content_band=content_band,
         excluded_texts=excluded_texts,
     )
 
@@ -955,12 +1118,24 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
     margin_x0 = layout.left_col_x[0] if layout.left_col_x else 0.0
     margin_x1 = layout.right_col_x[1] if layout.right_col_x else page_rect.width
 
+    # Vertical padding must not push a figure/graphic clip back into a reserved
+    # header/footer band (which the tight-bbox trim above already pulled it out
+    # of) -- clamp the padded y-range to the band, treating its edges like the
+    # page margins. Same FIGURE/GRAPHIC-only scope and same crossing-edge-only
+    # rule as that trim, so text elements keep their full padded extent.
+    band_top, band_bot = layout.content_band or (0.0, page_rect.height)
+
     elements = layout.elements
     padded = []
     for el in elements:
         bb = el.bbox
+        clamp = el.kind in (Kind.FIGURE, Kind.GRAPHIC)
         y0 = bb.y0 - pad
         y1 = bb.y1 + pad
+        if clamp and bb.y1 > band_top:
+            y0 = max(y0, band_top)
+        if clamp and bb.y0 < band_bot:
+            y1 = min(y1, band_bot)
 
         if el.column == Column.LEFT:
             x0 = margin_x0

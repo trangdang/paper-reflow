@@ -41,6 +41,16 @@ AMBIGUOUS_SPANNING_FRACTION = 0.85
 HEADER_FOOTER_BAND_FRACTION = 0.05  # top/bottom 5% of page height
 HEADER_FOOTER_MAX_HEIGHT_PT = 20.0
 HEADER_FOOTER_MAX_WIDTH_PT = 60.0
+# Running head/footer detection. Small page-number stamps aside, running
+# heads/footers are wider text (a journal name, author list, or copyright
+# line) that the small-stamp test above misses. What actually marks them as
+# boilerplate rather than body content is recurrence: the same text (ignoring
+# the per-page page number) shows up near the top/bottom of many pages. Any
+# text block whose letters-only form recurs on at least RUNNING_HEAD_MIN_PAGES
+# pages, within HEADER_FOOTER_ZONE_FRACTION of the top/bottom edge, defines the
+# reserved band and is dropped from the output.
+HEADER_FOOTER_ZONE_FRACTION = 0.07  # top/bottom search band for running heads
+RUNNING_HEAD_MIN_PAGES = 2
 
 # --- Element grouping ---
 FIGURE_CLUSTER_GAP_PT = 4.0  # max gap between drawing rects to merge into one cluster
