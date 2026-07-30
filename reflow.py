@@ -10,7 +10,7 @@ import sys
 
 import fitz
 
-from lib.layout import build_page_layout, pad_and_snap_bboxes
+from workflow.layout import build_page_layout, pad_and_snap_bboxes
 from workflow.reading_order import build_reading_order, insert_page_breaks
 from workflow.render_final import render_final
 from workflow.render_overlay import render_overlay
