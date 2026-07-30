@@ -1,10 +1,10 @@
 # paper-reflow
 
-Convert a two-column academic PDF into a single-column, phone-friendly reflowed PDF.
+Convert a two-column technical PDF into a single-column, phone-friendly reflowed PDF.
 
 ## Objective
 
-Two-column research papers are painful to read on a phone: you have to zoom into the left column,
+Two-column technical papers are painful to read on a phone: you have to zoom into the left column,
 scroll down, then scroll all the way back up to follow the right column. `paper-reflow` rewrites the
 paper into one narrow column laid out in true reading order, while keeping the output as vector
 content (selectable text, crisp figures).

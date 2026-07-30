@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI: convert a two-column academic PDF into a single-column, phone-friendly
+"""CLI: convert a two-column technical PDF into a single-column, phone-friendly
 reflow. Always writes a bbox-overlay debug PDF alongside the requested
 output."""
 
@@ -78,7 +78,7 @@ def run(input_path: str, output_path: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Reflow a two-column academic PDF for phone screens."
+        description="Reflow a two-column technical PDF for phone screens."
     )
     parser.add_argument("input", help="path to source two-column PDF")
     parser.add_argument("output", help="path to write the final reflowed PDF")

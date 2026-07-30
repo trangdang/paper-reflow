@@ -16,7 +16,7 @@ COLUMN_MEMBERSHIP_MIN_FRACTION = (
 SPANNING_MIN_WIDTH_FRACTION = 0.60  # width relative to a single column's target width
 
 # --- Element width-completion heuristic ---
-# Real academic-paper elements are essentially never an arbitrary fraction of
+# Real technical-paper elements are essentially never an arbitrary fraction of
 # the page width: they're either about one column wide, or they span both
 # columns. Elements narrower than SINGLE_COLUMN_MIN_WIDTH_FRACTION are
 # fragments that must be merged with nearby content until they reach a

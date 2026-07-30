@@ -6,7 +6,7 @@ leaving this file to focus on architecture.
 
 ## What this is
 
-`paper-reflow` converts a two-column academic PDF into a single-column, phone-friendly reflowed PDF
+`paper-reflow` converts a two-column technical PDF into a single-column, phone-friendly reflowed PDF
 using PyMuPDF (`fitz`). It detects the two-column gutter, classifies content blocks
 (paragraph/heading/figure/table/equation), computes a document-wide reading order, and re-renders
 the content as vector-preserving pages sized for a phone screen.

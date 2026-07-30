@@ -594,7 +594,7 @@ def _merge_overlapping_same_column_elements(elements: list[Element]) -> list[Ele
 
 
 def _complete_undersized_elements(elements: list[Element], page_width: float) -> list[Element]:
-    """Real academic-paper elements are essentially never an arbitrary
+    """Real technical-paper elements are essentially never an arbitrary
     fraction of the page width: they're either about one column wide or they
     span both columns. An element narrower than
     SINGLE_COLUMN_MIN_WIDTH_FRACTION is treated as an incomplete fragment
