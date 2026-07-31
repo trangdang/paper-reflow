@@ -34,6 +34,9 @@ uv run scripts/check_text_fidelity.py <source.pdf> <output.pdf>
 # Lint / format (ruff, 100-char lines; see [tool.ruff] in pyproject.toml)
 uv run ruff check .
 uv run ruff format .
+
+# E2E benchmark
+uv run scripts/bench_e2e.py
 ```
 
 `tests/` holds fast unit tests over the pure detection helpers — element merging
