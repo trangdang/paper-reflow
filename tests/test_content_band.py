@@ -8,13 +8,13 @@ import fitz
 
 from lib.config import HEADER_FOOTER_BAND_FRACTION, VERTICAL_PAD_PT
 from lib.elements import Bbox, Column, Element, Kind, PageLayout
-from workflow.layout import (
+from workflow.content_bands import (
     _header_footer_stamp,
     _norm_running,
     detect_content_bands,
     get_text_blocks,
-    pad_and_snap_bboxes,
 )
+from workflow.layout import pad_and_snap_bboxes
 
 PAGE_W = 600.0
 PAGE_H = 800.0
