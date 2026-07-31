@@ -12,7 +12,8 @@ import sys
 import fitz
 
 from lib.elements import Kind
-from workflow.layout import build_page_layout, detect_content_bands, pad_and_snap_bboxes
+from workflow.content_bands import detect_content_bands
+from workflow.layout import build_page_layout, pad_and_snap_bboxes
 from workflow.reading_order import build_reading_order, insert_page_breaks
 from workflow.render_final import render_final
 from workflow.render_overlay import render_overlay
