@@ -10,7 +10,7 @@ x-shifted rather than pushed off-page)."""
 import fitz
 
 from lib.config import WHITE_FILL_MIN_COMPONENT
-from workflow.layout import _find_invisible_white_fill_artifacts
+from workflow.figures import _find_invisible_white_fill_artifacts
 
 PAGE = fitz.Rect(0, 0, 600, 800)
 
