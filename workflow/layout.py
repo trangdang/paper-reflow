@@ -1,5 +1,6 @@
-"""Per-page layout detection: gutter/column split, block classification,
-element grouping, and bbox padding/whitespace-snapping."""
+"""Per-page layout detection orchestrator: runs gutter/column detection,
+figure/table/caption clustering, and the element-merging pipeline to build
+each page's PageLayout."""
 
 import fitz
 
