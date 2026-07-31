@@ -6,7 +6,7 @@ be left alone."""
 
 from lib.config import BBOX_OVERLAP_TOLERANCE_PT
 from lib.elements import Bbox, Column, Element, Kind
-from workflow.layout import _merge_overlapping_same_kind_elements
+from workflow.element_merging import _merge_overlapping_same_kind_elements
 
 
 def _el(kind, column, bbox, text="", refs=None):
