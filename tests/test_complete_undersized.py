@@ -5,9 +5,10 @@ incomplete fragment. A neighbor that's already column-width-complete is real,
 unrelated content and must not be absorbed (which would force an entire column
 to SPANNING)."""
 
+from lib.blocks import _content_x_extent
 from lib.config import ELEMENT_MERGE_SEARCH_GAP_PT, SINGLE_COLUMN_MIN_WIDTH_FRACTION
 from lib.elements import Bbox, Column, Element, Kind
-from workflow.layout import _complete_undersized_elements, _content_x_extent
+from workflow.element_merging import _complete_undersized_elements
 
 CONTENT_WIDTH = 600.0
 MIN_WIDTH = SINGLE_COLUMN_MIN_WIDTH_FRACTION * CONTENT_WIDTH  # 240
