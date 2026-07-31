@@ -21,12 +21,19 @@ from workflow.render_overlay import render_overlay
 def run(input_path: str, output_path: str) -> None:
     src_doc = fitz.open(input_path)
 
+    # Each page's get_text("dict") is parsed once here and threaded through
+    # every pass below (probe layout, content-band detection, final layout)
+    # instead of each pass re-parsing it independently.
+    text_dicts = [src_doc[i].get_text("dict") for i in range(len(src_doc))]
+
     # Gutter width is a property of the document's print template, so it
     # shouldn't vary page to page -- but per-page detection is noisy (see
     # build_page_layout). Detect once per page, then re-detect using the
     # document-wide consensus width so every page's column split is
     # consistent.
-    probe_layouts = [build_page_layout(src_doc[i], i) for i in range(len(src_doc))]
+    probe_layouts = [
+        build_page_layout(src_doc[i], i, text_dict=text_dicts[i]) for i in range(len(src_doc))
+    ]
     gutter_widths = [
         round(pl.gutter_x[1] - pl.gutter_x[0], 3) for pl in probe_layouts if pl.gutter_x
     ]
@@ -37,13 +44,14 @@ def run(input_path: str, output_path: str) -> None:
     # figures/graphics are kept from bleeding into them. The band is measured
     # excluding the first page (its masthead differs) but applied to every
     # page, so a first-page running head matching the rest is still caught.
-    content_band = detect_content_bands(src_doc)
+    content_band = detect_content_bands(src_doc, text_dicts=text_dicts)
     page_layouts = [
         build_page_layout(
             src_doc[i],
             i,
             gutter_width_override=gutter_width,
             content_band=content_band,
+            text_dict=text_dicts[i],
         )
         for i in range(len(src_doc))
     ]

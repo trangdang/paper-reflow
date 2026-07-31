@@ -57,8 +57,9 @@ def _norm_running(text: str) -> str:
     return "".join(c for c in text.lower() if c.isalpha())
 
 
-def _text_blocks_with_bbox(page: fitz.Page):
-    for b in page.get_text("dict")["blocks"]:
+def _text_blocks_with_bbox(page: fitz.Page, text_dict: dict | None = None):
+    d = text_dict if text_dict is not None else page.get_text("dict")
+    for b in d["blocks"]:
         if b["type"] != 0:
             continue
         bbox = _block_bbox(b)
@@ -67,7 +68,9 @@ def _text_blocks_with_bbox(page: fitz.Page):
         yield b, bbox
 
 
-def detect_content_bands(pages) -> tuple[float, float]:
+def detect_content_bands(
+    pages, text_dicts: list[dict] | None = None
+) -> tuple[float, float]:
     """Document-wide vertical content band: the (header_bottom, footer_top)
     y-range that body content is confined to, i.e. below the running header
     strip and above the footer strip. Text blocks outside this band
@@ -86,7 +89,12 @@ def detect_content_bands(pages) -> tuple[float, float]:
     one-off first-page title or a section heading sitting high on the page.
 
     Header edge is 0.0 and footer edge is page height when nothing is
-    detected."""
+    detected.
+
+    `text_dicts`, if given, is each page's already-parsed `get_text("dict")`
+    result (same order as `pages`), reused here instead of re-parsing --
+    callers that also need the parsed dict elsewhere (e.g. build_page_layout)
+    should parse once and pass it through."""
     if not len(pages):
         height = 0.0
     else:
@@ -98,13 +106,17 @@ def detect_content_bands(pages) -> tuple[float, float]:
         height = statistics.mode(p.rect.height for p in sample)
     zone = config.HEADER_FOOTER_ZONE_FRACTION * height
 
+    # Parsed once per page (not per pass) and reused below; also reused by
+    # build_page_layout when the caller threads its own text_dicts through.
+    dicts = text_dicts if text_dicts is not None else [p.get_text("dict") for p in pages]
+
     # First pass: which normalized texts recur near the top (headers) / bottom
     # (footers), counted by distinct page so a block repeated within one page
     # doesn't self-qualify.
     top_pages: dict[str, set] = {}
     bot_pages: dict[str, set] = {}
     for i, page in enumerate(pages):
-        for b, bbox in _text_blocks_with_bbox(page):
+        for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
             norm = _norm_running(_block_text(b))
             if len(norm) < 2:
                 continue
@@ -138,7 +150,7 @@ def detect_content_bands(pages) -> tuple[float, float]:
     for i, page in enumerate(pages):
         if i == 0:
             continue
-        for b, bbox in _text_blocks_with_bbox(page):
+        for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
             text = _block_text(b)
             norm = _norm_running(text)
             side = _header_footer_stamp(bbox, page.rect)
@@ -160,7 +172,9 @@ def detect_content_bands(pages) -> tuple[float, float]:
 
 
 def get_text_blocks(
-    page: fitz.Page, content_band: tuple[float, float] | None = None
+    page: fitz.Page,
+    content_band: tuple[float, float] | None = None,
+    text_dict: dict | None = None,
 ) -> tuple[list[dict], list[str]]:
     """Text blocks (type==0) from get_text('dict'), with header/footer blocks
     excluded. Also returns the text of blocks excluded as header/footer (a
@@ -173,9 +187,14 @@ def get_text_blocks(
     for this page (see detect_content_bands). Any block lying entirely above
     header_bottom or below footer_top is a running head/footer and is dropped
     -- this is what removes the wide running heads (journal name, author list)
-    and footer boilerplate (copyright line) that the small-stamp test misses."""
+    and footer boilerplate (copyright line) that the small-stamp test misses.
+
+    `text_dict` is an already-parsed `page.get_text("dict")` result, reused
+    instead of re-parsing when the caller has one on hand (e.g. reflow.py
+    parses each page once up front and threads it through here and through
+    detect_content_bands)."""
     header_bottom, footer_top = content_band or (0.0, page.rect.height)
-    d = page.get_text("dict")
+    d = text_dict if text_dict is not None else page.get_text("dict")
     out = []
     stamp_texts = []
     for b in d["blocks"]:
@@ -942,8 +961,9 @@ def build_page_layout(
     page_no: int,
     gutter_width_override: float | None = None,
     content_band: tuple[float, float] | None = None,
+    text_dict: dict | None = None,
 ) -> PageLayout:
-    text_blocks, excluded_texts = get_text_blocks(page, content_band)
+    text_blocks, excluded_texts = get_text_blocks(page, content_band, text_dict)
     is_two_col, left_col_x, right_col_x, gutter_x = detect_gutter(page, text_blocks)
     if is_two_col and gutter_width_override is not None:
         # Per-page gutter detection is noisy: a page whose narrow-block
