@@ -58,6 +58,10 @@ CAPTION_MAX_DISTANCE_PT = 40.0
 # cluster/caption must horizontally overlap (within this tolerance) to be matched
 CAPTION_MAX_X_GAP_PT = 10.0
 MIN_DRAWING_CLUSTER_AREA_PT2 = 20.0 * 20.0
+# max vertical gap allowed between a heading-classified figure label and an
+# orphan "Figure N" caption below it, when nothing else sits between them, to
+# still count as one figure (see _merge_orphan_figure_captions)
+ORPHAN_FIGURE_LABEL_MAX_GAP_PT = 250.0
 # Drawings that are stroke-free, fully opaque, near-pure-white fills are invisible on a white
 # page (e.g. leftover boxed-equation template artifacts) but still register as "figure" content
 # to naive area-based clustering -- filter them out before clustering.

@@ -12,6 +12,7 @@ from lib.elements import Bbox, Column, Element, Kind, PageLayout
 # Table captions are conventionally numbered with roman numerals ("Table
 # I"), figures with arabic ("Figure 3") -- accept either after either label.
 CAPTION_RE = re.compile(r"^(Figure|Fig\.?|Table)\s*([0-9]+|[IVXLCDM]+)", re.IGNORECASE)
+FIGURE_CAPTION_RE = re.compile(r"^(Figure|Fig\.?)\s*([0-9]+|[IVXLCDM]+)", re.IGNORECASE)
 
 
 def _block_bbox(block: dict) -> Bbox:
@@ -985,6 +986,67 @@ def _reclassify_ambiguous_width_band(
             el.column = Column.SPANNING
 
 
+def _merge_orphan_figure_captions(elements: list[Element]) -> list[Element]:
+    """A diagram baked into a scanned/rasterized page background leaves no
+    vector drawing paths for _cluster_drawings to key off, so it never gets a
+    FIGURE element from the cluster+caption pass above. What's left is just
+    the diagram's own in-picture OCR text (axis/path labels) -- short, bold,
+    large-font fragments that _is_heading reads as a HEADING -- sitting well
+    above its "Figure N" caption, which lands as an ordinary PARAGRAPH with
+    nothing in between to explain the gap. Pair a HEADING with the nearest
+    later figure caption horizontally aligned with it, as long as no other
+    element sits visually between them, into one FIGURE element unioning
+    both bboxes -- that's what lets the figure's clip region cover the
+    actual (undetected) artwork between the label and its caption, not just
+    the label text itself.
+
+    Matching is by x-position, not the assigned Column: the label (wide,
+    reaching toward the gutter) and its narrower caption commonly land in
+    different Column buckets from classify_block's fractional-overlap test
+    even though they're clearly the same figure."""
+    consumed: set[int] = set()
+    result: list[Element] = []
+    for i, el in enumerate(elements):
+        if el.kind != Kind.HEADING:
+            result.append(el)
+            continue
+        best: tuple[int, Element] | None = None
+        for j, other in enumerate(elements):
+            if j == i or j in consumed:
+                continue
+            if other.kind != Kind.PARAGRAPH:
+                continue
+            if not other.text or not FIGURE_CAPTION_RE.match(other.text.strip()):
+                continue
+            if other.bbox.y0 < el.bbox.y1:
+                continue
+            x_gap = max(el.bbox.x0 - other.bbox.x1, other.bbox.x0 - el.bbox.x1, 0.0)
+            if x_gap > config.CAPTION_MAX_X_GAP_PT:
+                continue
+            if best is None or other.bbox.y0 < best[1].bbox.y0:
+                best = (j, other)
+        if best is None:
+            result.append(el)
+            continue
+        j, cap = best
+        if cap.bbox.y0 - el.bbox.y1 > config.ORPHAN_FIGURE_LABEL_MAX_GAP_PT:
+            result.append(el)
+            continue
+        union_x0, union_x1 = min(el.bbox.x0, cap.bbox.x0), max(el.bbox.x1, cap.bbox.x1)
+        gap_region = Bbox(union_x0, el.bbox.y1, union_x1, cap.bbox.y0)
+        between = any(
+            k != i and k != j and k not in consumed and other.bbox.intersects(gap_region)
+            for k, other in enumerate(elements)
+        )
+        if between:
+            result.append(el)
+            continue
+        bbox = el.bbox.union(cap.bbox)
+        result.append(Element(kind=Kind.FIGURE, page_no=el.page_no, column=el.column, bbox=bbox))
+        consumed.add(j)
+    return [el for i, el in enumerate(result) if i not in consumed]
+
+
 def build_page_layout(
     page: fitz.Page,
     page_no: int,
@@ -1110,6 +1172,7 @@ def build_page_layout(
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     _reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)
+    elements = _merge_orphan_figure_captions(elements)
 
     # Trim figure/graphic clusters that poke into the reserved header/footer
     # bands so a too-tall drawing bbox doesn't overlap the running-head strip
