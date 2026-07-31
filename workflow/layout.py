@@ -69,9 +69,7 @@ def _text_blocks_with_bbox(page: fitz.Page, text_dict: dict | None = None):
         yield b, bbox
 
 
-def detect_content_bands(
-    pages, text_dicts: list[dict] | None = None
-) -> tuple[float, float]:
+def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[float, float]:
     """Document-wide vertical content band: the (header_bottom, footer_top)
     y-range that body content is confined to, i.e. below the running header
     strip and above the footer strip. Text blocks outside this band
@@ -697,9 +695,7 @@ def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.R
         )
 
     def any_pair_overlaps(items: list[tuple[int, fitz.Rect]]) -> bool:
-        return any(
-            a.intersects(b) for i, (_, a) in enumerate(items) for _, b in items[i + 1 :]
-        )
+        return any(a.intersects(b) for i, (_, a) in enumerate(items) for _, b in items[i + 1 :])
 
     artifact_indices: set[int] = set()
     for items in by_size.values():
@@ -888,7 +884,9 @@ def _merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Eleme
     return elements
 
 
-def _complete_undersized_elements(elements: list[Element], content_width: float) -> list[Element]:
+def _complete_undersized_elements(
+    elements: list[Element], content_width: float, median_line_height: float | None = None
+) -> list[Element]:
     """Real technical-paper elements are essentially never an arbitrary
     fraction of the page's content width: they're either about one column
     wide or they span both columns. An element narrower than
@@ -905,9 +903,23 @@ def _complete_undersized_elements(elements: list[Element], content_width: float)
     can have a real, complete column sit just under 40% of the *page* width
     while still being ~48% of the *content* width, which would otherwise
     misclassify every legitimate paragraph as an undersized fragment and
-    cascade-merge the whole page into one spanning element."""
+    cascade-merge the whole page into one spanning element.
+
+    median_line_height tightens the search radius specifically when the
+    candidate neighbor is already column-width-complete: a genuine trailing
+    line-group sits within about one line height of its own paragraph, but a
+    stray narrow fragment (e.g. a borderless table's label column, whose true
+    partner columns are sideways rather than above/below it) can otherwise be
+    the nearest thing by raw Chebyshev gap to an unrelated paragraph several
+    lines away and get pulled into it. Incomplete-neighbor merges (the actual
+    fragment-assembly case) are unaffected and keep the full search radius."""
     min_width = config.SINGLE_COLUMN_MIN_WIDTH_FRACTION * content_width
     max_gap = config.ELEMENT_MERGE_SEARCH_GAP_PT
+    complete_neighbor_gap = (
+        min(max_gap, median_line_height * config.UNDERSIZED_COMPLETE_NEIGHBOR_GAP_LINES)
+        if median_line_height
+        else max_gap
+    )
     elements = list(elements)
 
     changed = True
@@ -920,23 +932,38 @@ def _complete_undersized_elements(elements: list[Element], content_width: float)
             for j, other in enumerate(elements):
                 if j == i:
                     continue
-                # A real column boundary (LEFT vs RIGHT) is only worth
-                # crossing when the neighbor is itself an incomplete
-                # fragment -- two narrow halves split by the gutter are
-                # plausibly one logical element. A neighbor that's already
-                # column-width-complete on its own (e.g. an entire column of
-                # legitimately narrower boxed/indented content) is real,
-                # unrelated content, not a continuation fragment: merging
-                # into it would force-label an entire other column SPANNING.
+                # A real column boundary is only worth crossing when the
+                # neighbor is itself an incomplete fragment -- two narrow
+                # halves split by the gutter are plausibly one logical
+                # element. A neighbor that's already column-width-complete on
+                # its own (e.g. an entire column of legitimately narrower
+                # boxed/indented content) is real, unrelated content, not a
+                # continuation fragment. This applies whether the undersized
+                # side is itself LEFT/RIGHT or a leftover SPANNING fragment
+                # (e.g. an unmerged row of a borderless table) -- an already-
+                # complete LEFT/RIGHT paragraph below a table is exactly the
+                # unrelated content this guard exists to protect, and without
+                # this check a table's growing SPANNING blob can keep
+                # cascading into it merge after merge.
                 if (
                     el.column != other.column
-                    and el.column in (Column.LEFT, Column.RIGHT)
                     and other.column in (Column.LEFT, Column.RIGHT)
                     and other.bbox.width >= min_width
                 ):
                     continue
-                dist = _rect_gap(el.bbox, other.bbox)
-                if dist <= max_gap and (best_dist is None or dist < best_dist):
+                dx = max(el.bbox.x0 - other.bbox.x1, other.bbox.x0 - el.bbox.x1, 0.0)
+                dy = max(el.bbox.y0 - other.bbox.y1, other.bbox.y0 - el.bbox.y1, 0.0)
+                dist = max(dx, dy)
+                # The tighter, line-height-scaled radius only governs
+                # vertical separation (a trailing line stacking under/over
+                # its paragraph). A horizontal-only gap into a complete
+                # neighbor -- e.g. a borderless table's rightmost column
+                # sitting beside, not below, the rest of the table -- is a
+                # different geometry and keeps the full search radius.
+                gap_limit = (
+                    complete_neighbor_gap if other.bbox.width >= min_width and dy >= dx else max_gap
+                )
+                if dist <= gap_limit and (best_dist is None or dist < best_dist):
                     best_j, best_dist = j, dist
             if best_j is None:
                 continue  # genuinely isolated -- leave as a small standalone element
@@ -1170,7 +1197,7 @@ def build_page_layout(
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     content_width = _content_x_extent(text_blocks, page.rect.width)
-    elements = _complete_undersized_elements(elements, content_width)
+    elements = _complete_undersized_elements(elements, content_width, median_line_height)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
     _reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)

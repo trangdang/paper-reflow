@@ -24,6 +24,13 @@ SINGLE_COLUMN_MIN_WIDTH_FRACTION = 0.40  # fraction of content width
 TWO_COLUMN_MIN_WIDTH_FRACTION = 0.60  # fraction of content width
 # max gap to search for a merge candidate when completing a fragment
 ELEMENT_MERGE_SEARCH_GAP_PT = 60.0
+# when the merge candidate is already column-width-complete, only a genuine
+# trailing-line continuation (a small multiple of one text line's height)
+# should still cross into it -- a wide search radius here would let an
+# unrelated fragment several lines away (e.g. a table's label column) jump
+# into the next section's paragraph just because it's the nearest thing
+# geometrically
+UNDERSIZED_COMPLETE_NEIGHBOR_GAP_LINES = 2.0
 
 # --- Ambiguous-width reclassification ---
 # Unlike the width-completion heuristic above (which compares against page
