@@ -294,13 +294,15 @@ def detect_gutter(
         for i in range(b0, b1 + 1):
             occupancy[i] += bb.height
 
-    # Threshold as a fraction of the page's vertical content extent (not the
-    # sum of both columns' block heights combined — that conflated the two
-    # columns' occupancy and made real column content register as a "gap").
-    content_y0 = min(bb.y0 for bb in narrow)
-    content_y1 = max(bb.y1 for bb in narrow)
-    content_height = content_y1 - content_y0
-    threshold = (1.0 - config.GUTTER_COVERAGE_MIN_FRACTION) * content_height
+    # Threshold as a fraction of the busiest bucket's occupancy, not the
+    # page's full vertical content extent -- a fixed height bar assumes every
+    # real column is packed with text top-to-bottom, which breaks whenever a
+    # column holds a large figure or a sparse table (real content, but not
+    # narrow text blocks): the column's own text can fall far short of that
+    # bar and the whole column gets misread as the gutter. Calibrating against
+    # the page's own densest column self-corrects for how much text actually
+    # exists, regardless of what non-text content shares the page.
+    threshold = (1.0 - config.GUTTER_COVERAGE_MIN_FRACTION) * max(occupancy)
     best_gap = None
     i = 0
     while i < n_buckets:
