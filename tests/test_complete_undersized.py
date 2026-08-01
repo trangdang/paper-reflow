@@ -5,7 +5,7 @@ incomplete fragment. A neighbor that's already column-width-complete is real,
 unrelated content and must not be absorbed (which would force an entire column
 to SPANNING)."""
 
-from lib.blocks import _content_x_extent
+from lib.blocks import content_x_extent
 from lib.config import ELEMENT_MERGE_SEARCH_GAP_PT, SINGLE_COLUMN_MIN_WIDTH_FRACTION
 from lib.elements import Bbox, Column, Element, Kind
 from workflow.element_merging import _complete_undersized_elements
@@ -69,8 +69,8 @@ def test_content_x_extent_spans_leftmost_to_rightmost_block():
     # Wide unused margins on either side must not count toward the extent --
     # only the actual leftmost/rightmost block edges matter.
     blocks = [_block((50, 0, 150, 20)), _block((400, 30, 500, 50))]
-    assert _content_x_extent(blocks, fallback_width=600.0) == 450.0
+    assert content_x_extent(blocks, fallback_width=600.0) == 450.0
 
 
 def test_content_x_extent_falls_back_to_page_width_when_no_blocks():
-    assert _content_x_extent([], fallback_width=600.0) == 600.0
+    assert content_x_extent([], fallback_width=600.0) == 600.0

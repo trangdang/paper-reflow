@@ -8,8 +8,8 @@ import re
 import fitz
 
 from lib import config
-from lib.blocks import _block_bbox, _block_text
-from lib.clustering import _cluster_bboxes, _cluster_indices
+from lib.blocks import block_bbox, block_text
+from lib.clustering import cluster_bboxes, cluster_indices
 from lib.elements import Bbox, Column, Element, Kind
 from workflow.gutter import classify_or_single
 
@@ -32,13 +32,13 @@ def _merge_dense_text_clusters(
         i
         for i, b in enumerate(text_blocks)
         if i not in used
-        and (lambda bb: bb.width <= small_dim_pt and bb.height <= small_dim_pt)(_block_bbox(b))
+        and (lambda bb: bb.width <= small_dim_pt and bb.height <= small_dim_pt)(block_bbox(b))
     ]
     if not small_idx:
         return []
 
-    bboxes = [_block_bbox(text_blocks[i]) for i in small_idx]
-    groups = _cluster_indices(bboxes, gap)
+    bboxes = [block_bbox(text_blocks[i]) for i in small_idx]
+    groups = cluster_indices(bboxes, gap)
 
     merged: list[Element] = []
     for group in groups:
@@ -46,11 +46,11 @@ def _merge_dense_text_clusters(
             continue
         orig_indices = [small_idx[g] for g in group]
         blocks = [text_blocks[i] for i in orig_indices]
-        bbox = _block_bbox(blocks[0])
-        text_parts = [_block_text(blocks[0])]
+        bbox = block_bbox(blocks[0])
+        text_parts = [block_text(blocks[0])]
         for b in blocks[1:]:
-            bbox = bbox.union(_block_bbox(b))
-            text_parts.append(_block_text(b))
+            bbox = bbox.union(block_bbox(b))
+            text_parts.append(block_text(b))
         for i in orig_indices:
             used.add(i)
         merged.append(
@@ -84,7 +84,7 @@ def _table_rule_regions(page: fitz.Page) -> list[Bbox]:
     if not lines:
         return []
 
-    groups = _cluster_indices(lines, config.TABLE_RULE_CLUSTER_GAP_PT)
+    groups = cluster_indices(lines, config.TABLE_RULE_CLUSTER_GAP_PT)
     regions = []
     for group in groups:
         if len(group) < config.TABLE_RULE_MIN_LINES:
@@ -265,7 +265,7 @@ def _cluster_drawings(page: fitz.Page) -> list[Bbox]:
             continue
         rects.append(Bbox(r.x0, r.y0, r.x1, r.y1))
 
-    clusters = _cluster_bboxes(rects, config.FIGURE_CLUSTER_GAP_PT)
+    clusters = cluster_bboxes(rects, config.FIGURE_CLUSTER_GAP_PT)
     return [c for c in clusters if c.width * c.height >= config.MIN_DRAWING_CLUSTER_AREA_PT2]
 
 
@@ -278,7 +278,7 @@ def _absorb_contained_labels(cluster_bbox: Bbox, text_blocks: list[dict], used: 
     for idx, b in enumerate(text_blocks):
         if idx in used:
             continue
-        bb = _block_bbox(b)
+        bb = block_bbox(b)
         area = bb.width * bb.height
         if area <= 0:
             continue
@@ -296,10 +296,10 @@ def _find_caption(cluster_bbox: Bbox, text_blocks: list[dict], used: set) -> dic
     for idx, b in enumerate(text_blocks):
         if idx in used:
             continue
-        text = _block_text(b)
+        text = block_text(b)
         if not CAPTION_RE.match(text.strip()):
             continue
-        bb = _block_bbox(b)
+        bb = block_bbox(b)
         # A caption must horizontally relate to its figure, not just sit
         # within range vertically -- otherwise a caption near the bottom of
         # one column can read as "close" to a drawing cluster at the top of
@@ -374,7 +374,7 @@ def _build_figure_graphic_elements(
             uncaptioned.append(ci)
             continue
         cap_idx, cap_block = caption
-        side = "above" if cluster_bbox.y1 <= _block_bbox(cap_block).y0 else "below"
+        side = "above" if cluster_bbox.y1 <= block_bbox(cap_block).y0 else "below"
         if cap_idx in caption_groups and caption_side[cap_idx] != side:
             uncaptioned.append(ci)
             continue
@@ -387,7 +387,7 @@ def _build_figure_graphic_elements(
         bbox = clusters[cluster_idxs[0]]
         for ci in cluster_idxs[1:]:
             bbox = bbox.union(clusters[ci])
-        bbox = bbox.union(_block_bbox(text_blocks[cap_idx]))
+        bbox = bbox.union(block_bbox(text_blocks[cap_idx]))
         column = classify_or_single(bbox, is_two_col, left_col_x, right_col_x)
         elements.append(Element(kind=Kind.FIGURE, page_no=page_no, column=column, bbox=bbox))
 

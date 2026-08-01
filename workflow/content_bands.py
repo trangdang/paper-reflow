@@ -8,7 +8,7 @@ import statistics
 import fitz
 
 from lib import config
-from lib.blocks import _block_bbox, _block_text, _is_rotated_margin_stamp
+from lib.blocks import block_bbox, block_text, is_rotated_margin_stamp
 from lib.elements import Bbox
 
 
@@ -52,7 +52,7 @@ def _text_blocks_with_bbox(page: fitz.Page, text_dict: dict | None = None):
     for b in d["blocks"]:
         if b["type"] != 0:
             continue
-        bbox = _block_bbox(b)
+        bbox = block_bbox(b)
         if bbox.width <= 0 or bbox.height <= 0:
             continue
         yield b, bbox
@@ -105,7 +105,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
     bot_pages: dict[str, set] = {}
     for i, page in enumerate(pages):
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
-            norm = _norm_running(_block_text(b))
+            norm = _norm_running(block_text(b))
             if len(norm) < 2:
                 continue
             if bbox.y1 <= zone:
@@ -139,7 +139,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
         if i == 0:
             continue
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
-            text = _block_text(b)
+            text = block_text(b)
             norm = _norm_running(text)
             side = _header_footer_stamp(bbox, page.rect)
             digit_stamp = _is_small_stamp(bbox) and norm == "" and any(c.isdigit() for c in text)
@@ -188,17 +188,17 @@ def get_text_blocks(
     for b in d["blocks"]:
         if b["type"] != 0:
             continue
-        bbox = _block_bbox(b)
+        bbox = block_bbox(b)
         if bbox.width <= 0 or bbox.height <= 0:
             continue
         if _is_header_footer(bbox, page.rect):
-            stamp_texts.append(_block_text(b))
+            stamp_texts.append(block_text(b))
             continue
         if bbox.y1 <= header_bottom or bbox.y0 >= footer_top:
-            stamp_texts.append(_block_text(b))
+            stamp_texts.append(block_text(b))
             continue
-        if _is_rotated_margin_stamp(bbox):
-            stamp_texts.append(_block_text(b))
+        if is_rotated_margin_stamp(bbox):
+            stamp_texts.append(block_text(b))
             continue
         out.append(b)
     return out, stamp_texts

@@ -5,7 +5,7 @@ each page's PageLayout."""
 import fitz
 
 from lib import config
-from lib.blocks import _block_bbox, _block_text, _content_x_extent
+from lib.blocks import block_bbox, block_text, content_x_extent
 from lib.elements import Bbox, Column, Element, Kind, PageLayout
 from workflow.content_bands import get_text_blocks
 from workflow.element_merging import (
@@ -52,8 +52,8 @@ def build_page_layout(
     for idx, b in enumerate(text_blocks):
         if idx in used_text_idx:
             continue
-        bbox = _block_bbox(b)
-        text = _block_text(b)
+        bbox = block_bbox(b)
+        text = block_text(b)
         column = classify_or_single(bbox, is_two_col, left_col_x, right_col_x)
         # Headings (section titles) span the full column width in this
         # two-column layout; a within-column block with a large font is
@@ -68,7 +68,7 @@ def build_page_layout(
     elements = _merge_adjacent_paragraphs(elements, median_line_height)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
-    content_width = _content_x_extent(text_blocks, page.rect.width)
+    content_width = content_x_extent(text_blocks, page.rect.width)
     elements = _complete_undersized_elements(elements, content_width, median_line_height)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)

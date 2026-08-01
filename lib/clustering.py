@@ -5,7 +5,7 @@ detection and dense small-text-block clustering in workflow/figures.py."""
 from lib.elements import Bbox
 
 
-def _cluster_bboxes(bboxes: list[Bbox], gap: float) -> list[Bbox]:
+def cluster_bboxes(bboxes: list[Bbox], gap: float) -> list[Bbox]:
     """Greedy proximity clustering: merge any bboxes whose gap-expanded
     extents intersect, repeated to a fixed point. Shared by drawing-fragment
     clustering and dense small-text-block clustering (e.g. borderless
@@ -35,8 +35,8 @@ def _cluster_bboxes(bboxes: list[Bbox], gap: float) -> list[Bbox]:
     return pending
 
 
-def _cluster_indices(bboxes: list[Bbox], gap: float) -> list[list[int]]:
-    """Like _cluster_bboxes but returns groups of original indices, so
+def cluster_indices(bboxes: list[Bbox], gap: float) -> list[list[int]]:
+    """Like cluster_bboxes but returns groups of original indices, so
     callers can trace merged regions back to their source blocks."""
     groups = [[i] for i in range(len(bboxes))]
     cur_bboxes = list(bboxes)

@@ -3,7 +3,7 @@
 import fitz
 
 from lib import config
-from lib.blocks import _block_bbox, _content_x_range
+from lib.blocks import block_bbox, content_x_range
 from lib.elements import Bbox, Column
 
 
@@ -17,8 +17,8 @@ def detect_gutter(
     if not blocks:
         return False, None, None, None
 
-    bboxes = [_block_bbox(b) for b in blocks]
-    content_x0, content_x1 = _content_x_range(blocks)
+    bboxes = [block_bbox(b) for b in blocks]
+    content_x0, content_x1 = content_x_range(blocks)
     content_width = content_x1 - content_x0
     if content_width <= 0:
         return False, None, None, None
