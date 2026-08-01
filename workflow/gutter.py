@@ -131,3 +131,10 @@ def classify_block(bbox: Bbox, left_col_x, right_col_x) -> Column:
         return Column.RIGHT
     # Ambiguous / straddling / wide -> default to SPANNING (safer failure mode).
     return Column.SPANNING
+
+
+def classify_or_single(bbox: Bbox, is_two_col: bool, left_col_x, right_col_x) -> Column:
+    """classify_block, but for a single-column page every block is just the
+    whole-width Column.SINGLE rather than a LEFT/RIGHT/SPANNING split that
+    doesn't apply."""
+    return classify_block(bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE

@@ -11,7 +11,7 @@ from lib import config
 from lib.blocks import _block_bbox, _block_text
 from lib.clustering import _cluster_bboxes, _cluster_indices
 from lib.elements import Bbox, Column, Element, Kind
-from workflow.gutter import classify_block
+from workflow.gutter import classify_or_single
 
 # Table captions are conventionally numbered with roman numerals ("Table
 # I"), figures with arabic ("Figure 3") -- accept either after either label.
@@ -126,9 +126,6 @@ def _merge_table_rule_regions(
     elements: list[Element],
     page: fitz.Page,
     page_no: int,
-    is_two_col: bool,
-    left_col_x,
-    right_col_x,
 ) -> list[Element]:
     """Fold every element overlapping a detected ruled-table frame -- the
     header row, data rows (however many fragments they landed in), and a
@@ -136,7 +133,16 @@ def _merge_table_rule_regions(
     whose bbox is unioned with the rule frame itself. That union is what
     lets the result reach the table's true left/right border position even
     when (as is common) the table has no drawn top border to anchor on: the
-    left/right rule extent is still known from the vertical tick marks."""
+    left/right rule extent is still known from the vertical tick marks.
+
+    The merged element's column is left as its first member's -- just a
+    placeholder, since the caller (build_page_layout) reclassifies every
+    element against the page's column geometry via classify_or_single right
+    after this specific pass. That's a one-off correction, not a general
+    pattern: none of the other merge steps in workflow/element_merging.py get
+    a follow-up reclassification -- they each compute their merged output's
+    column directly (inheriting a member's column, or forcing SPANNING on a
+    real column-crossing merge)."""
     regions = _table_rule_regions(page)
     if not regions:
         return elements
@@ -177,13 +183,10 @@ def _merge_table_rule_regions(
                 text_parts.append(el.text)
             source_refs.extend(el.source_refs)
 
-        column = (
-            classify_block(merged_bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
-        )
         merged_el = Element(
             kind=Kind.TABLE,
             page_no=page_no,
-            column=column,
+            column=members[0].column,
             bbox=merged_bbox,
             text="\n".join(text_parts),
             source_refs=source_refs,
@@ -385,20 +388,18 @@ def _build_figure_graphic_elements(
         for ci in cluster_idxs[1:]:
             bbox = bbox.union(clusters[ci])
         bbox = bbox.union(_block_bbox(text_blocks[cap_idx]))
-        column = classify_block(bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        column = classify_or_single(bbox, is_two_col, left_col_x, right_col_x)
         elements.append(Element(kind=Kind.FIGURE, page_no=page_no, column=column, bbox=bbox))
 
     for ci in uncaptioned:
         bbox = clusters[ci]
-        column = classify_block(bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
+        column = classify_or_single(bbox, is_two_col, left_col_x, right_col_x)
         elements.append(Element(kind=Kind.GRAPHIC, page_no=page_no, column=column, bbox=bbox))
 
     gap = 2 * config.VERTICAL_PAD_PT
     for el in _merge_dense_text_clusters(text_blocks, used_text_idx, gap):
         el.page_no = page_no
-        el.column = (
-            classify_block(el.bbox, left_col_x, right_col_x) if is_two_col else Column.SINGLE
-        )
+        el.column = classify_or_single(el.bbox, is_two_col, left_col_x, right_col_x)
         if el.column != Column.SPANNING:
             el.kind = Kind.PARAGRAPH
         elements.append(el)

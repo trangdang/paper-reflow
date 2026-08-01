@@ -24,7 +24,7 @@ from workflow.figures import (
     _merge_table_rule_regions,
     _trim_figures_to_content_band,
 )
-from workflow.gutter import classify_block, detect_gutter, pin_gutter_width
+from workflow.gutter import classify_or_single, detect_gutter, pin_gutter_width
 
 
 def build_page_layout(
@@ -54,10 +54,7 @@ def build_page_layout(
             continue
         bbox = _block_bbox(b)
         text = _block_text(b)
-        if is_two_col:
-            column = classify_block(bbox, left_col_x, right_col_x)
-        else:
-            column = Column.SINGLE
+        column = classify_or_single(bbox, is_two_col, left_col_x, right_col_x)
         # Headings (section titles) span the full column width in this
         # two-column layout; a within-column block with a large font is
         # more likely a display equation or emphasized text, not a heading.
@@ -65,9 +62,9 @@ def build_page_layout(
         kind = Kind.HEADING if is_spanning and _is_heading(b, body_font_size) else Kind.PARAGRAPH
         elements.append(Element(kind=kind, page_no=page_no, column=column, bbox=bbox, text=text))
 
-    elements = _merge_table_rule_regions(
-        elements, page, page_no, is_two_col, left_col_x, right_col_x
-    )
+    elements = _merge_table_rule_regions(elements, page, page_no)
+    for el in elements:
+        el.column = classify_or_single(el.bbox, is_two_col, left_col_x, right_col_x)
     elements = _merge_adjacent_paragraphs(elements, median_line_height)
     elements = _merge_overlapping_same_kind_elements(elements)
     elements = _merge_overlapping_same_column_elements(elements)
