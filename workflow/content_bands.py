@@ -19,7 +19,7 @@ def _is_small_stamp(bbox: Bbox) -> bool:
     )
 
 
-def _header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
+def header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
     """Classify bbox as a top ("header") or bottom ("footer") running stamp
     (page number / running head), or None if it isn't one. Same size/position
     test as the stripping in get_text_blocks, but reports which band so the
@@ -35,10 +35,10 @@ def _header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
 
 
 def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
-    return _header_footer_stamp(bbox, page_rect) is not None
+    return header_footer_stamp(bbox, page_rect) is not None
 
 
-def _norm_running(text: str) -> str:
+def norm_running(text: str) -> str:
     """Letters-only, lowercased form of a block's text, for running-head/footer
     repetition matching. The per-page page number and all punctuation drop out,
     so 'Glauz and Harwood 7' and 'Glauz and Harwood' both reduce to
@@ -70,7 +70,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
     page; the first page (index 0) carries a different masthead and is
     excluded from the consensus (the band is still applied to it, catching a
     first-page running head that matches the rest). Two signals feed the
-    band: small page-number stamps (_header_footer_stamp), and wider running
+    band: small page-number stamps (header_footer_stamp), and wider running
     heads/footers detected by recurrence -- a block whose letters-only text
     shows up near the same edge on RUNNING_HEAD_MIN_PAGES or more pages.
     Recurrence, not mere position, is what tells a running head from a
@@ -105,7 +105,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
     bot_pages: dict[str, set] = {}
     for i, page in enumerate(pages):
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
-            norm = _norm_running(block_text(b))
+            norm = norm_running(block_text(b))
             if len(norm) < 2:
                 continue
             if bbox.y1 <= zone:
@@ -117,7 +117,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
 
     # Second pass: measure the band extent from header/footer blocks. Three
     # signals contribute:
-    #   * a small stamp within the tight 5% band (_header_footer_stamp) -- the
+    #   * a small stamp within the tight 5% band (header_footer_stamp) -- the
     #     baseline page-number detector, all a document with no running head
     #     (just page numbers, e.g. micro_lie) ever needs;
     #   * a recurring running head/footer (letters-only text seen on several
@@ -140,8 +140,8 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
             continue
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
             text = block_text(b)
-            norm = _norm_running(text)
-            side = _header_footer_stamp(bbox, page.rect)
+            norm = norm_running(text)
+            side = header_footer_stamp(bbox, page.rect)
             digit_stamp = _is_small_stamp(bbox) and norm == "" and any(c.isdigit() for c in text)
             is_header = side == "header" or (
                 bbox.y1 <= zone and (norm in top_recurring or (have_header and digit_stamp))

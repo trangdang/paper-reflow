@@ -1,4 +1,4 @@
-"""Regression coverage for _find_invisible_white_fill_artifacts (commit
+"""Regression coverage for find_invisible_white_fill_artifacts (commit
 9147338): stroke-free, near-white fills that recur at an identical size with at
 least one copy off the physical page are stale LaTeX-template artifacts and
 should be flagged; a unique on-page white background (real boxed content) and
@@ -10,7 +10,7 @@ x-shifted rather than pushed off-page)."""
 import fitz
 
 from lib.config import WHITE_FILL_MIN_COMPONENT
-from workflow.figures import _find_invisible_white_fill_artifacts
+from workflow.figures import find_invisible_white_fill_artifacts
 
 PAGE = fitz.Rect(0, 0, 600, 800)
 
@@ -24,12 +24,12 @@ def test_recurring_white_fill_with_off_page_copy_is_flagged():
         _drawing((100, 100, 200, 150)),  # on-page copy
         _drawing((100, -400, 200, -350)),  # identical size, off the top of the page
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == {0, 1}
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == {0, 1}
 
 
 def test_unique_on_page_white_background_is_not_flagged():
     drawings = [_drawing((100, 100, 300, 400))]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == set()
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == set()
 
 
 def test_two_identical_on_page_and_non_overlapping_are_not_flagged():
@@ -38,7 +38,7 @@ def test_two_identical_on_page_and_non_overlapping_are_not_flagged():
         _drawing((100, 100, 200, 150)),
         _drawing((300, 100, 400, 150)),
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == set()
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == set()
 
 
 def test_two_identical_on_page_but_overlapping_are_flagged():
@@ -48,7 +48,7 @@ def test_two_identical_on_page_but_overlapping_are_flagged():
         _drawing((93.95, 27.5, 255.12, 253.25)),
         _drawing((131.67, 27.5, 292.84, 253.25)),
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == {0, 1}
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == {0, 1}
 
 
 def test_stroked_rect_is_not_a_candidate():
@@ -57,7 +57,7 @@ def test_stroked_rect_is_not_a_candidate():
         _drawing((100, 100, 200, 150), color=(0, 0, 0)),
         _drawing((100, -400, 200, -350), color=(0, 0, 0)),
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == set()
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == set()
 
 
 def test_non_white_fill_is_not_a_candidate():
@@ -66,7 +66,7 @@ def test_non_white_fill_is_not_a_candidate():
         _drawing((100, 100, 200, 150), fill=grey),
         _drawing((100, -400, 200, -350), fill=grey),
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == set()
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == set()
 
 
 def test_degenerate_and_fill_less_rects_ignored():
@@ -74,4 +74,4 @@ def test_degenerate_and_fill_less_rects_ignored():
         {"rect": fitz.Rect(0, 0, 0, 0), "fill": (1, 1, 1), "color": None},  # zero area
         {"rect": fitz.Rect(100, 100, 200, 150), "fill": None, "color": None},  # no fill
     ]
-    assert _find_invisible_white_fill_artifacts(drawings, PAGE) == set()
+    assert find_invisible_white_fill_artifacts(drawings, PAGE) == set()

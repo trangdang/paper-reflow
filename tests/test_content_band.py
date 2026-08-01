@@ -1,5 +1,5 @@
 """Coverage for the reserved header/footer content-band handling: stamp-side
-classification (`_header_footer_stamp`), running-head/footer detection
+classification (`header_footer_stamp`), running-head/footer detection
 (`detect_content_bands` + `get_text_blocks` exclusion), and the FIGURE/GRAPHIC
 clip that keeps a too-tall drawing bbox from bleeding into the running-head
 strip while leaving text elements (which carry the reflow words) untouched."""
@@ -10,10 +10,10 @@ from lib.config import HEADER_FOOTER_BAND_FRACTION, VERTICAL_PAD_PT
 from lib.elements import Bbox, Column, Element, Kind, PageLayout
 from workflow.bbox_padding import pad_and_snap_bboxes
 from workflow.content_bands import (
-    _header_footer_stamp,
-    _norm_running,
     detect_content_bands,
     get_text_blocks,
+    header_footer_stamp,
+    norm_running,
 )
 
 PAGE_W = 600.0
@@ -24,13 +24,13 @@ BAND = HEADER_FOOTER_BAND_FRACTION * PAGE_H  # top/bottom band edge
 def test_norm_running_drops_digits_and_punctuation():
     # Page number and punctuation drop out so a running head matches across
     # pages regardless of its per-page page number...
-    assert _norm_running("Glauz and Harwood 7") == "glauzandharwood"
-    assert _norm_running("Glauz and Harwood") == "glauzandharwood"
+    assert norm_running("Glauz and Harwood 7") == "glauzandharwood"
+    assert norm_running("Glauz and Harwood") == "glauzandharwood"
     # ...and a copyright line reduces to a stable core across pages.
-    assert _norm_running("0-7803-9521-2/06/$20.00 §2006 IEEE.784") == "ieee"
+    assert norm_running("0-7803-9521-2/06/$20.00 §2006 IEEE.784") == "ieee"
     # A pure page number (or digit-ish math fragment) has no letters.
-    assert _norm_running("12") == ""
-    assert _norm_running("⌧!0") == ""
+    assert norm_running("12") == ""
+    assert norm_running("⌧!0") == ""
 
 
 # --- Running-head/footer detection over small in-memory documents ---
@@ -109,13 +109,13 @@ def test_footerless_bottom_digit_fragment_does_not_invent_footer():
 def test_stamp_side_classification():
     rect = fitz.Rect(0, 0, PAGE_W, PAGE_H)
     # Small block in the top band -> header.
-    assert _header_footer_stamp(Bbox(560, 10, 580, 22), rect) == "header"
+    assert header_footer_stamp(Bbox(560, 10, 580, 22), rect) == "header"
     # Small block in the bottom band -> footer.
-    assert _header_footer_stamp(Bbox(560, PAGE_H - 15, 580, PAGE_H - 3), rect) == "footer"
+    assert header_footer_stamp(Bbox(560, PAGE_H - 15, 580, PAGE_H - 3), rect) == "footer"
     # Small block in the middle of the page -> not a stamp.
-    assert _header_footer_stamp(Bbox(560, 400, 580, 412), rect) is None
+    assert header_footer_stamp(Bbox(560, 400, 580, 412), rect) is None
     # Wide running head in the top band -> too wide to be a stamp (kept as body).
-    assert _header_footer_stamp(Bbox(40, 10, 500, 22), rect) is None
+    assert header_footer_stamp(Bbox(40, 10, 500, 22), rect) is None
 
 
 def _layout(elements, band):

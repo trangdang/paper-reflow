@@ -1,7 +1,7 @@
 """Element merging/completion helpers: adjacent-paragraph merging, overlap
 merging (same column / same kind), undersized-element completion, and
 ambiguous-width reclassification. Two related merge steps --
-_merge_table_rule_regions and _merge_orphan_figure_captions -- live in
+merge_table_rule_regions and merge_orphan_figure_captions -- live in
 workflow/figures.py instead. The full, order-dependent merge sequence is
 centralized in workflow/layout.py's build_page_layout; see the docstring
 above each function for the failure mode it exists to fix."""
@@ -12,7 +12,7 @@ from lib import config
 from lib.elements import Column, Element, Kind
 
 
-def _median_line_height(blocks: list[dict]) -> float:
+def median_line_height(blocks: list[dict]) -> float:
     heights = []
     for b in blocks:
         for line in b["lines"]:
@@ -26,7 +26,7 @@ def _median_line_height(blocks: list[dict]) -> float:
     return statistics.median(heights) if heights else 10.0
 
 
-def _merge_adjacent_paragraphs(elements: list[Element], median_line_height: float) -> list[Element]:
+def merge_adjacent_paragraphs(elements: list[Element], median_line_height: float) -> list[Element]:
     """Merge adjacent blocks in the same column if the gap between them is smaller
     than the median line height, unless a heading (font-size jump) sits between them.
     Headings are identified upstream and kept as their own Kind.HEADING elements,
@@ -65,14 +65,14 @@ def _merge_adjacent_paragraphs(elements: list[Element], median_line_height: floa
     return merged
 
 
-def _is_heading(block: dict, body_font_size: float) -> bool:
+def is_heading(block: dict, body_font_size: float) -> bool:
     sizes = [s["size"] for line in block["lines"] for s in line["spans"]]
     if not sizes:
         return False
     return max(sizes) > body_font_size * 1.15
 
 
-def _body_font_size(blocks: list[dict]) -> float:
+def body_font_size(blocks: list[dict]) -> float:
     sizes = []
     for b in blocks:
         for line in b["lines"]:
@@ -99,7 +99,7 @@ def _merged_kind(a: Kind, b: Kind) -> Kind:
     return Kind.OTHER
 
 
-def _merge_overlapping_same_column_elements(elements: list[Element]) -> list[Element]:
+def merge_overlapping_same_column_elements(elements: list[Element]) -> list[Element]:
     """Two elements sharing the same column classification (both LEFT, both
     RIGHT, or both SPANNING) whose tight bboxes overlap are, by construction,
     the same piece of content seen as multiple fragments (e.g. a table's
@@ -107,7 +107,7 @@ def _merge_overlapping_same_column_elements(elements: list[Element]) -> list[Ele
     element) -- render them as separate clip regions and the overlapping
     area gets duplicated into the output twice. Merge any such pair,
     repeated to a fixed point. This is independent of element width: unlike
-    _complete_undersized_elements, it fires purely on overlap, not size.
+    complete_undersized_elements, it fires purely on overlap, not size.
 
     Uses BBOX_OVERLAP_TOLERANCE_PT as the intersection tolerance rather than
     a bare intersects() check: adjacent same-column paragraphs routinely
@@ -142,12 +142,12 @@ def _merge_overlapping_same_column_elements(elements: list[Element]) -> list[Ele
     return elements
 
 
-def _merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Element]:
+def merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Element]:
     """Two elements that share both column and kind (e.g. two LEFT-column
     paragraphs) whose tight bboxes overlap at all -- even a sub-pixel sliver
     below BBOX_OVERLAP_TOLERANCE_PT -- are the same logical unit split by
     extraction noise (line-height rounding, ascender/descender box padding).
-    Unlike _merge_overlapping_same_column_elements, this doesn't need the
+    Unlike merge_overlapping_same_column_elements, this doesn't need the
     tolerance to guard against over-merging unrelated content: restricting to
     matching kind already rules out folding a heading into a paragraph or a
     table into a caption, so any genuine overlap is safe to merge. Iterated
@@ -180,7 +180,7 @@ def _merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Eleme
     return elements
 
 
-def _complete_undersized_elements(
+def complete_undersized_elements(
     elements: list[Element], content_width: float, median_line_height: float | None = None
 ) -> list[Element]:
     """Real technical-paper elements are essentially never an arbitrary
@@ -286,7 +286,7 @@ def _complete_undersized_elements(
     return elements
 
 
-def _reclassify_ambiguous_width_band(
+def reclassify_ambiguous_width_band(
     elements: list[Element], is_two_col: bool, left_col_x, right_col_x
 ) -> None:
     """An element noticeably wider than this page's own single column but

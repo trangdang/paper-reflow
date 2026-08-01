@@ -122,7 +122,7 @@ def _table_rule_regions(page: fitz.Page) -> list[Bbox]:
     return regions
 
 
-def _merge_table_rule_regions(
+def merge_table_rule_regions(
     elements: list[Element],
     page: fitz.Page,
     page_no: int,
@@ -196,7 +196,7 @@ def _merge_table_rule_regions(
     return elements
 
 
-def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.Rect) -> set[int]:
+def find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.Rect) -> set[int]:
     """Identify stroke-free, pure-white-filled rects that are stale leftovers (e.g. from a
     boxed-equation LaTeX template), not intentional page content. A white fill alone isn't enough
     to tell: real boxed content (e.g. an "Example N" box) is commonly built from a white
@@ -253,7 +253,7 @@ def _find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.R
 def _cluster_drawings(page: fitz.Page) -> list[Bbox]:
     """Greedy union-find style clustering of drawing rects by proximity."""
     drawings = page.get_drawings()
-    artifact_idx = _find_invisible_white_fill_artifacts(drawings, page.rect)
+    artifact_idx = find_invisible_white_fill_artifacts(drawings, page.rect)
     rects = []
     for i, d in enumerate(drawings):
         r = d.get("rect")
@@ -321,7 +321,7 @@ def _find_caption(cluster_bbox: Bbox, text_blocks: list[dict], used: set) -> dic
     return best
 
 
-def _build_figure_graphic_elements(
+def build_figure_graphic_elements(
     page: fitz.Page,
     text_blocks: list[dict],
     used_text_idx: set,
@@ -407,7 +407,7 @@ def _build_figure_graphic_elements(
     return elements
 
 
-def _trim_figures_to_content_band(
+def trim_figures_to_content_band(
     elements: list[Element], content_band: tuple[float, float]
 ) -> None:
     """Trim figure/graphic clusters that poke into the reserved header/footer
@@ -438,12 +438,12 @@ def _rect_gap(a: Bbox, b: Bbox) -> float:
     return max(dx, dy)
 
 
-def _merge_orphan_figure_captions(elements: list[Element]) -> list[Element]:
+def merge_orphan_figure_captions(elements: list[Element]) -> list[Element]:
     """A diagram baked into a scanned/rasterized page background leaves no
     vector drawing paths for _cluster_drawings to key off, so it never gets a
     FIGURE element from the cluster+caption pass above. What's left is just
     the diagram's own in-picture OCR text (axis/path labels) -- short, bold,
-    large-font fragments that _is_heading reads as a HEADING -- sitting well
+    large-font fragments that is_heading reads as a HEADING -- sitting well
     above its "Figure N" caption, which lands as an ordinary PARAGRAPH with
     nothing in between to explain the gap. Pair a HEADING with the nearest
     later figure caption horizontally aligned with it, as long as no other
