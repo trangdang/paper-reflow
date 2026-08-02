@@ -83,6 +83,13 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
     # two *tight* bboxes already overlap slightly (common: PyMuPDF block
     # bboxes include ascender/descender space) some residual overlap is
     # inherent to the source geometry and can't be snapped away.
+    #
+    # Each inward step is at most SNAP_STEP_PT, but the final step clamps
+    # exactly to the tight-bbox edge rather than bailing when a whole step
+    # would overshoot it — otherwise up to nearly a full step of padding
+    # could be left un-given-back on each side, and two nearly-touching
+    # same-column blocks would keep a residual padded overlap (approaching
+    # 2*SNAP_STEP_PT) that snapping is meant to eliminate.
     n = len(elements)
     for i in range(n):
         tight_i = elements[i].bbox
@@ -93,24 +100,14 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
             guard = 0
             while bi.intersects(bj) and guard < 1000:
                 guard += 1
-                if (
-                    bi.y1 > bj.y0
-                    and bi.y0 < bj.y0
-                    and bi.y1 <= bj.y1
-                    and bi.y1 - step >= tight_i.y1
-                ):
-                    bi = Bbox(bi.x0, bi.y0, bi.x1, bi.y1 - step)
-                elif (
-                    bi.y0 < bj.y1
-                    and bi.y1 > bj.y1
-                    and bi.y0 >= bj.y0
-                    and bi.y0 + step <= tight_i.y0
-                ):
-                    bi = Bbox(bi.x0, bi.y0 + step, bi.x1, bi.y1)
-                elif bi.x1 > bj.x0 and bi.x0 < bj.x0 and bi.x1 - step >= tight_i.x1:
-                    bi = Bbox(bi.x0, bi.y0, bi.x1 - step, bi.y1)
-                elif bi.x0 < bj.x1 and bi.x1 > bj.x1 and bi.x0 + step <= tight_i.x0:
-                    bi = Bbox(bi.x0 + step, bi.y0, bi.x1, bi.y1)
+                if bi.y1 > bj.y0 and bi.y0 < bj.y0 and bi.y1 <= bj.y1 and bi.y1 > tight_i.y1:
+                    bi = Bbox(bi.x0, bi.y0, bi.x1, max(bi.y1 - step, tight_i.y1))
+                elif bi.y0 < bj.y1 and bi.y1 > bj.y1 and bi.y0 >= bj.y0 and bi.y0 < tight_i.y0:
+                    bi = Bbox(bi.x0, min(bi.y0 + step, tight_i.y0), bi.x1, bi.y1)
+                elif bi.x1 > bj.x0 and bi.x0 < bj.x0 and bi.x1 > tight_i.x1:
+                    bi = Bbox(bi.x0, bi.y0, max(bi.x1 - step, tight_i.x1), bi.y1)
+                elif bi.x0 < bj.x1 and bi.x1 > bj.x1 and bi.x0 < tight_i.x0:
+                    bi = Bbox(min(bi.x0 + step, tight_i.x0), bi.y0, bi.x1, bi.y1)
                 else:
                     break
             padded[i] = bi
