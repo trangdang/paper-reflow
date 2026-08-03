@@ -14,6 +14,7 @@ from workflow.element_merging import (
     is_heading,
     median_line_height,
     merge_adjacent_paragraphs,
+    merge_contained_elements,
     merge_overlapping_same_column_elements,
     merge_overlapping_same_kind_elements,
     reclassify_ambiguous_width_band,
@@ -74,6 +75,7 @@ def build_page_layout(
     elements = complete_undersized_elements(elements, content_width, doc_median_line_height)
     elements = merge_overlapping_same_kind_elements(elements)
     elements = merge_overlapping_same_column_elements(elements)
+    elements = merge_contained_elements(elements)
     reclassify_ambiguous_width_band(elements, is_two_col, left_col_x, right_col_x)
     elements = merge_orphan_figure_captions(elements)
 

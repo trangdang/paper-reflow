@@ -180,6 +180,54 @@ def merge_overlapping_same_kind_elements(elements: list[Element]) -> list[Elemen
     return elements
 
 
+def merge_contained_elements(elements: list[Element]) -> list[Element]:
+    """Absorb any element whose tight bbox sits fully inside another
+    element's bbox into that container -- regardless of column or kind.
+
+    Rendering is clip-based: an element's padded_bbox becomes a
+    show_pdf_page(clip=...) region, so if element B is geometrically inside
+    element A, A's clip already draws every pixel of B. Keeping B as its own
+    element then renders that same region a second time, duplicating the
+    content into the output. The common source is complete_undersized_elements
+    growing a small SPANNING fragment into a big blob that ends up enclosing a
+    separate, complete-width column paragraph the undersized pass's
+    column-crossing guard deliberately left alone -- a containment the
+    same-column/same-kind overlap passes miss because the two differ in
+    column (e.g. SPANNING vs RIGHT).
+
+    Unlike the overlap passes this fires on full containment, not any
+    intersection, so it can't cascade-merge a whole column of merely-adjacent
+    paragraphs. The container's column is kept; kind follows _merged_kind.
+    Iterated to a fixed point. A small tolerance absorbs sub-pixel protrusion
+    from PyMuPDF's ascender/descender box padding."""
+    tol = config.BBOX_OVERLAP_TOLERANCE_PT
+    elements = list(elements)
+    changed = True
+    while changed:
+        changed = False
+        n = len(elements)
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    continue
+                outer, inner = elements[i], elements[j]
+                if outer.bbox.contains(inner.bbox, tolerance=tol):
+                    merged = Element(
+                        kind=_merged_kind(outer.kind, inner.kind),
+                        page_no=outer.page_no,
+                        column=outer.column,
+                        bbox=outer.bbox.union(inner.bbox),
+                        text="\n".join(t for t in (outer.text, inner.text) if t),
+                        source_refs=outer.source_refs + inner.source_refs,
+                    )
+                    elements = [e for k, e in enumerate(elements) if k not in (i, j)] + [merged]
+                    changed = True
+                    break
+            if changed:
+                break
+    return elements
+
+
 def complete_undersized_elements(
     elements: list[Element], content_width: float, median_line_height: float | None = None
 ) -> list[Element]:
