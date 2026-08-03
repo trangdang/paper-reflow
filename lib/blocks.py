@@ -17,8 +17,15 @@ def block_text(block: dict) -> str:
 def is_rotated_margin_stamp(bbox: Bbox) -> bool:
     """Vertical sidebar text (e.g. an arXiv identifier printed rotated in the
     page margin) shows up as a very narrow, very tall block. It isn't part of
-    the normal reading flow, so it's excluded rather than misclassified."""
-    return bbox.width < 25.0 and bbox.height > 100.0
+    the normal reading flow, so it's excluded rather than misclassified.
+
+    "Narrow" is judged by aspect ratio, not an absolute width cap alone: a
+    longer identifier printed at a larger point size (e.g. the arXiv stamp on
+    1812.01537, ~27pt wide and ~341pt tall) overflows a fixed ~25pt width cap
+    while still being unmistakably a tall thin sidebar. Requiring the height to
+    dwarf the width keeps a genuinely wide-but-tall block (a real narrow
+    column) from being mistaken for a stamp."""
+    return bbox.height > 100.0 and bbox.width < 35.0 and bbox.height > 5.0 * bbox.width
 
 
 def content_x_range(blocks: list[dict]) -> tuple[float, float] | None:
