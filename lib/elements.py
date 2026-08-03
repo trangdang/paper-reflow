@@ -48,6 +48,17 @@ class Bbox:
             or other.y1 <= self.y0 + tolerance
         )
 
+    def contains(self, other: "Bbox", tolerance: float = 0.0) -> bool:
+        """True if `other` sits (almost) entirely within this bbox. tolerance
+        allows the contained box to protrude by up to that many points on any
+        edge and still count as contained (sub-pixel extraction noise)."""
+        return (
+            self.x0 <= other.x0 + tolerance
+            and self.y0 <= other.y0 + tolerance
+            and self.x1 >= other.x1 - tolerance
+            and self.y1 >= other.y1 - tolerance
+        )
+
     def union(self, other: "Bbox") -> "Bbox":
         return Bbox(
             min(self.x0, other.x0),
