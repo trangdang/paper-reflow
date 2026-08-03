@@ -49,17 +49,22 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
 
         if el.column == Column.LEFT:
             x0 = margin_x0
-            x1 = layout.gutter_x[1] if layout.gutter_x else margin_x1
-            # Gutter-side edge may extend to gutter midpoint at most.
+            # Inner (gutter-side) edge sits at the gutter midpoint, but is never
+            # pulled inside the element's own content: a block whose text edges
+            # past the midpoint into the gutter (e.g. a subheading flush at the
+            # column margin) must stay fully covered by its clip, or its
+            # gutter-side glyphs get cut off. Snapping below still gives padding
+            # back down to the tight bbox when two columns' clips collide.
             if layout.gutter_x:
                 gutter_mid = (layout.gutter_x[0] + layout.gutter_x[1]) / 2
-                x1 = min(x1, gutter_mid) if bb.x1 <= gutter_mid else x1
-                x1 = gutter_mid
+                x1 = max(gutter_mid, bb.x1)
+            else:
+                x1 = margin_x1
         elif el.column == Column.RIGHT:
             x1 = margin_x1
             if layout.gutter_x:
                 gutter_mid = (layout.gutter_x[0] + layout.gutter_x[1]) / 2
-                x0 = gutter_mid
+                x0 = min(gutter_mid, bb.x0)
             else:
                 x0 = margin_x0
         else:  # SPANNING / SINGLE

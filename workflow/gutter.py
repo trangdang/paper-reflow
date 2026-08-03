@@ -123,7 +123,15 @@ def pin_gutter_width(
 def classify_block(bbox: Bbox, left_col_x, right_col_x) -> Column:
     left_overlap = max(0, min(bbox.x1, left_col_x[1]) - max(bbox.x0, left_col_x[0]))
     right_overlap = max(0, min(bbox.x1, right_col_x[1]) - max(bbox.x0, right_col_x[0]))
-    width = bbox.width if bbox.width > 0 else 1e-6
+    # Measure membership against the block's width *outside the gutter*, not its
+    # full width. The gutter is empty space; a block that edges a few points into
+    # it (common for section subheadings sitting right at the column margin) is
+    # still cleanly single-column, but counting that protrusion in the denominator
+    # drags its overlap fraction below the threshold and misclassifies it as
+    # SPANNING. Only intrusion into the *opposite* column should cost membership.
+    gutter_overlap = max(0, min(bbox.x1, right_col_x[0]) - max(bbox.x0, left_col_x[1]))
+    width = bbox.width - gutter_overlap
+    width = width if width > 0 else 1e-6
 
     if left_overlap / width >= config.COLUMN_MEMBERSHIP_MIN_FRACTION:
         return Column.LEFT
