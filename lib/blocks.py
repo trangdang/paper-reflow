@@ -28,6 +28,15 @@ def is_rotated_margin_stamp(bbox: Bbox) -> bool:
     return bbox.height > 100.0 and bbox.width < 35.0 and bbox.height > 5.0 * bbox.width
 
 
+def is_equation_tag(text: str) -> bool:
+    """A parenthesized equation number like '(184)'. When one falls in the
+    bottom-margin band at the foot of a column it can look exactly like a
+    footer page-number stamp (small, low on the page, digit-bearing); the
+    parentheses are the tell that distinguishes a real equation tag from a
+    bare running page number, which never carries them."""
+    return "(" in text and ")" in text
+
+
 def content_x_range(blocks: list[dict]) -> tuple[float, float] | None:
     """Leftmost/rightmost block edge across `blocks`, i.e. the actual
     horizontal span of content -- the single source of truth for "content

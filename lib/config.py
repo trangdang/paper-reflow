@@ -92,6 +92,12 @@ TABLE_RULE_MIN_FULL_WIDTH_LINES = 3
 VERTICAL_PAD_PT = 2.5
 SNAP_STEP_PT = 1.0
 BBOX_OVERLAP_TOLERANCE_PT = 2.0
+# Clearance kept between a LEFT/RIGHT column clip's gutter-side edge and the
+# opposite column's real (tight) content. On a page whose detected gutter
+# center drifts into protruding opposite-column content (noisy per-page gutter),
+# this stops a column's clip from ending flush against an opposite-column glyph
+# and sweeping it across the gutter into the wrong column.
+CLIP_GUTTER_CLEARANCE_PT = 1.5
 
 # --- Output layout ---
 TARGET_COLUMN_WIDTH_PT = 380.0

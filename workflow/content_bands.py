@@ -8,7 +8,7 @@ import statistics
 import fitz
 
 from lib import config
-from lib.blocks import block_bbox, block_text, is_rotated_margin_stamp
+from lib.blocks import block_bbox, block_text, is_equation_tag, is_rotated_margin_stamp
 from lib.elements import Bbox
 
 
@@ -19,13 +19,20 @@ def _is_small_stamp(bbox: Bbox) -> bool:
     )
 
 
-def header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
+def header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect, text: str = "") -> str | None:
     """Classify bbox as a top ("header") or bottom ("footer") running stamp
     (page number / running head), or None if it isn't one. Same size/position
     test as the stripping in get_text_blocks, but reports which band so the
-    document-wide content-band consensus can be built per side."""
+    document-wide content-band consensus can be built per side.
+
+    `text` is the block's text: a parenthesized equation tag (e.g. '(184)')
+    sitting at the foot of a column is small, low, and digit-bearing enough to
+    trip the size/position test, but is real body content, not a running
+    stamp, so it's rejected up front (is_equation_tag)."""
     band = config.HEADER_FOOTER_BAND_FRACTION * page_rect.height
     if not _is_small_stamp(bbox):
+        return None
+    if is_equation_tag(text):
         return None
     if bbox.y1 <= band:
         return "header"
@@ -34,8 +41,8 @@ def header_footer_stamp(bbox: Bbox, page_rect: fitz.Rect) -> str | None:
     return None
 
 
-def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect) -> bool:
-    return header_footer_stamp(bbox, page_rect) is not None
+def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect, text: str = "") -> bool:
+    return header_footer_stamp(bbox, page_rect, text) is not None
 
 
 def norm_running(text: str) -> str:
@@ -141,7 +148,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
             text = block_text(b)
             norm = norm_running(text)
-            side = header_footer_stamp(bbox, page.rect)
+            side = header_footer_stamp(bbox, page.rect, text)
             digit_stamp = _is_small_stamp(bbox) and norm == "" and any(c.isdigit() for c in text)
             is_header = side == "header" or (
                 bbox.y1 <= zone and (norm in top_recurring or (have_header and digit_stamp))
@@ -191,7 +198,7 @@ def get_text_blocks(
         bbox = block_bbox(b)
         if bbox.width <= 0 or bbox.height <= 0:
             continue
-        if _is_header_footer(bbox, page.rect):
+        if _is_header_footer(bbox, page.rect, block_text(b)):
             stamp_texts.append(block_text(b))
             continue
         if bbox.y1 <= header_bottom or bbox.y0 >= footer_top:

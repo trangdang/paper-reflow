@@ -36,6 +36,25 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
     band_top, band_bot = layout.content_band or (0.0, page_rect.height)
 
     elements = layout.elements
+    clearance = config.CLIP_GUTTER_CLEARANCE_PT
+
+    def _y_overlaps(a: Bbox, b: Bbox) -> bool:
+        return a.y1 > b.y0 and b.y1 > a.y0
+
+    def _opposite_content_edge(bb: Bbox, opposite: Column, is_left: bool) -> float | None:
+        """Nearest tight gutter-side edge of any vertically overlapping element
+        in the opposite column -- the right column's leftmost x0 (for a LEFT
+        element) or the left column's rightmost x1 (for a RIGHT element). None
+        if no opposite-column element shares this element's vertical span."""
+        edges = [
+            (o.bbox.x0 if is_left else o.bbox.x1)
+            for o in elements
+            if o.column == opposite and _y_overlaps(bb, o.bbox)
+        ]
+        if not edges:
+            return None
+        return min(edges) if is_left else max(edges)
+
     padded = []
     for el in elements:
         bb = el.bbox
@@ -60,6 +79,11 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
                 x1 = max(gutter_mid, bb.x1)
             else:
                 x1 = margin_x1
+            # Never let the clip edge reach the right column's real content
+            # (see CLIP_GUTTER_CLEARANCE_PT) -- but never cut this element's own.
+            edge = _opposite_content_edge(bb, Column.RIGHT, is_left=True)
+            if edge is not None:
+                x1 = max(min(x1, edge - clearance), bb.x1)
         elif el.column == Column.RIGHT:
             x1 = margin_x1
             if layout.gutter_x:
@@ -67,6 +91,9 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
                 x0 = min(gutter_mid, bb.x0)
             else:
                 x0 = margin_x0
+            edge = _opposite_content_edge(bb, Column.LEFT, is_left=False)
+            if edge is not None:
+                x0 = min(max(x0, edge + clearance), bb.x0)
         else:  # SPANNING / SINGLE
             # Pad out from the element's own tight extent, clamped to page
             # margins — NOT an unconditional stretch to full page width.
