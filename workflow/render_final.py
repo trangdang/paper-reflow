@@ -33,11 +33,12 @@ def draw_page_break_marker(
 def render_final(
     src_doc: fitz.Document,
     sequence: list[Element],
-    output_path: str,
     target_width: float = config.TARGET_COLUMN_WIDTH_PT,
     page_height: float = config.OUTPUT_PAGE_HEIGHT_PT,
     margin: float = config.OUTPUT_MARGIN_PT,
-) -> None:
+) -> fitz.Document:
+    """Build the final reflowed PDF and return the open Document. Callers own
+    persistence (CLI saves to a path; the browser adapter serializes to bytes)."""
     pages = plan_pagination(sequence, target_width, page_height, margin)
     page_width = target_width + 2 * margin
 
@@ -55,5 +56,4 @@ def render_final(
             )
             out_page.show_pdf_page(rect, src_doc, el.page_no, clip=clip)
 
-    out_doc.save(output_path, garbage=4, deflate=True)
-    out_doc.close()
+    return out_doc
