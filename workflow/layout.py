@@ -4,7 +4,6 @@ each page's PageLayout."""
 
 import fitz
 
-from lib import config
 from lib.blocks import block_bbox, block_text, content_x_extent
 from lib.elements import Column, Element, Kind, PageLayout
 from workflow.content_bands import get_text_blocks
@@ -60,9 +59,7 @@ def build_page_layout(
         # two-column layout; a within-column block with a large font is
         # more likely a display equation or emphasized text, not a heading.
         is_spanning = column in (Column.SPANNING, Column.SINGLE)
-        kind = (
-            Kind.HEADING if is_spanning and is_heading(b, doc_body_font_size) else Kind.PARAGRAPH
-        )
+        kind = Kind.HEADING if is_spanning and is_heading(b, doc_body_font_size) else Kind.PARAGRAPH
         elements.append(Element(kind=kind, page_no=page_no, column=column, bbox=bbox, text=text))
 
     elements = merge_table_rule_regions(elements, page, page_no)
