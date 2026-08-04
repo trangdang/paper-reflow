@@ -1,6 +1,7 @@
 # paper-reflow
 
-Convert a two-column technical PDF into a single-column, phone-friendly reflowed PDF.
+Convert a two-column technical PDF into a single-column, phone-friendly reflowed PDF. A vibe-coded
+exercise.
 
 ## Objective
 
@@ -56,3 +57,8 @@ sequence — reading `reflow.py` top to bottom gives the whole flow:
 
 Heuristic thresholds (gutter width, column-membership fraction, caption search distance, padding 
 steps, output page size) live in `lib/config.py`.
+
+
+## Testing
+A sample of papers used heavily for testing:
+- https://arxiv.org/abs/1812.01537
