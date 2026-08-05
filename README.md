@@ -3,6 +3,8 @@
 Convert a two-column technical PDF into a single-column, phone-friendly reflowed PDF. A vibe-coded
 exercise.
 
+Try it out: https://trangdang.github.io/paper-reflow/
+
 ## Objective
 
 Two-column technical papers are painful to read on a phone: you have to zoom into the left column,
