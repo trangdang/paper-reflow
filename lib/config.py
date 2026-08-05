@@ -94,8 +94,11 @@ WHITE_FILL_MIN_COMPONENT = 0.95  # each RGB component must be at least this to c
 # max gap between rule-line fragments to cluster into one table frame
 TABLE_RULE_CLUSTER_GAP_PT = 20.0
 TABLE_RULE_MIN_LINES = 6  # min rule fragments required before a cluster counts as a ruled table
-# min distinct vertical rule x-positions (column ticks) required
-TABLE_RULE_MIN_DISTINCT_VERTICALS = 5
+# min distinct vertical rule x-positions required. A real ruled table always has at least a
+# left+right border tick even when it has no internal per-column separators (e.g. booktabs-style
+# tables with only header/inter-row/bottom horizontal rules) -- the full-width-horizontal-rule
+# count below is what actually distinguishes a table from a decorative box outline.
+TABLE_RULE_MIN_DISTINCT_VERTICALS = 2
 # a horizontal rule must span at least this fraction of the region's width to count
 TABLE_RULE_FULL_WIDTH_FRACTION = 0.9
 # min distinct full-width horizontal rules (e.g. header/inter-row/bottom) required
