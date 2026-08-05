@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 .DS_Store
 
+node_modules
 outdir
 sample-papers
 

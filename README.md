@@ -50,8 +50,18 @@ uv run python -m http.server -d web 8000
 ```
 
 Pick a PDF and download the reflowed result. The first load fetches the Pyodide runtime and PyMuPDF
-(~25 MB, cached afterwards). `web/app.zip` is a generated artifact (git-ignored); regenerate it with
+(~25 MB, cached afterward). `web/app.zip` is a generated artifact (git-ignored); regenerate it with
 `web/build.sh` whenever the Python core changes.
+
+
+The JS/CSS/HTML in `web/` is linted and formatted with [Biome](https://biomejs.dev/):
+
+```bash
+cd web
+npm install
+npm run lint       # check
+npm run lint:fix   # apply fixes
+```
 
 ## Approach
 
