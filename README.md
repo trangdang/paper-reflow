@@ -34,6 +34,21 @@ Sanity-check that no text was dropped or duplicated:
 uv run scripts/check_text_fidelity.py <input.pdf> <output.pdf>
 ```
 
+## Web UI
+
+A static, client-side page runs the same pipeline entirely in the browser via
+[Pyodide](https://pyodide.org/) (PyMuPDF is loaded as a bundled Pyodide package) — no server, no
+upload.
+
+The JS/CSS/HTML in `web/` is linted and formatted with [Biome](https://biomejs.dev/):
+
+```bash
+cd web
+npm install
+npm run lint       # check
+npm run lint:fix   # apply fixes
+```
+
 ## Approach
 
 Built on [PyMuPDF](https://pymupdf.readthedocs.io/) (`fitz`). The pipeline is a straight-line

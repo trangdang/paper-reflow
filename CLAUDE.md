@@ -39,6 +39,15 @@ uv run ruff format .
 uv run scripts/bench_e2e.py
 ```
 
+`web/` (the Pyodide-based browser UI) has its own Biome-based lint/format setup, independent of `uv`:
+
+```bash
+cd web
+npm install
+npm run lint        # biome check .
+npm run lint:fix    # biome check --write .
+```
+
 `tests/` holds fast unit tests over the pure detection helpers — element merging
 (`_merge_overlapping_same_kind_elements`, `_complete_undersized_elements`'s cross-gutter guard),
 white-fill artifact detection (`_find_invisible_white_fill_artifacts`), the `Bbox` primitives, and
