@@ -43,3 +43,9 @@ jobs:
         working-directory: web
       - run: npm run lint
         working-directory: web
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: ./web/build.sh
