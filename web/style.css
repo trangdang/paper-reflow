@@ -1,0 +1,107 @@
+:root {
+  color-scheme: light dark;
+}
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  line-height: 1.5;
+}
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+p.sub {
+  margin-top: 0;
+  opacity: 0.7;
+}
+.card {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+input[type="file"] {
+  width: 100%;
+}
+button,
+a.btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.55rem 1rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+#fetchUrl {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: currentColor;
+}
+.divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  width: 40%;
+  margin: 1.5rem 0;
+}
+#status {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  min-height: 1.4em;
+}
+#status.error {
+  color: #dc2626;
+}
+a.btn[hidden] {
+  display: none;
+}
+.download-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+#downloadInfo {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+#downloadInfo[hidden] {
+  display: none;
+}
+.spinner {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.4em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.1em;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.url-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.4rem;
+}
+
+.or-divider {
+  margin: 1rem 0 0.25rem;
+  opacity: 0.7;
+}

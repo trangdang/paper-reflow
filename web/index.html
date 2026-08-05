@@ -4,47 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>paper-reflow</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 34rem; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.5;
-    }
-    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-    p.sub { margin-top: 0; opacity: 0.7; }
-    .card {
-      border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-      border-radius: 0.75rem; padding: 1.25rem; margin-top: 1.5rem;
-    }
-    input[type=file] { width: 100%; }
-    button, a.btn {
-      display: inline-block; margin-top: 1rem; padding: 0.55rem 1rem;
-      font-size: 1rem; border-radius: 0.5rem; border: 1px solid transparent;
-      background: #2563eb; color: #fff; cursor: pointer; text-decoration: none;
-    }
-    button:disabled { opacity: 0.5; cursor: default; }
-    #fetchUrl {
-      padding: 0.35rem 0.75rem; font-size: 0.85rem;
-      background: color-mix(in srgb, currentColor 12%, transparent);
-      color: currentColor;
-    }
-    .divider {
-      border: none; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-      width: 40%; margin: 1.5rem 0;
-    }
-    #status { margin-top: 1rem; font-size: 0.9rem; min-height: 1.4em; }
-    #status.error { color: #dc2626; }
-    a.btn[hidden] { display: none; }
-    .download-row { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
-    #downloadInfo { font-size: 0.8rem; opacity: 0.6; }
-    #downloadInfo[hidden] { display: none; }
-    .spinner {
-      display: inline-block; width: 0.9em; height: 0.9em; margin-right: 0.4em;
-      border: 2px solid currentColor; border-top-color: transparent;
-      border-radius: 50%; vertical-align: -0.1em; animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <h1>paper-reflow</h1>
@@ -54,11 +14,10 @@
     <label for="file">Choose a PDF to reflow:</label><br>
     <input type="file" id="file" accept="application/pdf" disabled>
 
-    <p style="margin: 1rem 0 0.25rem; opacity: 0.7;">&mdash; or &mdash;</p>
+    <p class="or-divider">&mdash; or &mdash;</p>
     <label for="url">Paste a PDF URL (e.g. an arXiv link):</label><br>
-    <input type="url" id="url" placeholder="https://arxiv.org/abs/2301.00001" disabled
-           style="width: 100%; box-sizing: border-box; margin-top: 0.4rem;">
-    <button id="fetchUrl" disabled>Fetch &amp; reflow</button>
+    <input type="url" id="url" placeholder="https://arxiv.org/abs/2301.00001" disabled class="url-input">
+    <button id="fetchUrl" type="button" disabled>Fetch &amp; reflow</button>
 
     <div id="status"><span class="spinner"></span>Loading&hellip;</div>
 
@@ -71,136 +30,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/pyodide/v314.0.4/full/pyodide.js"></script>
-  <script type="module">
-    const fileInput = document.getElementById("file");
-    const urlInput = document.getElementById("url");
-    const fetchUrlBtn = document.getElementById("fetchUrl");
-    const statusEl = document.getElementById("status");
-    const downloadEl = document.getElementById("download");
-    const downloadInfoEl = document.getElementById("downloadInfo");
-
-    function setStatus(msg, { busy = false, error = false } = {}) {
-      statusEl.className = error ? "error" : "";
-      statusEl.innerHTML = busy ? `<span class="spinner"></span>${msg}` : msg;
-    }
-
-    let reflowBytes; // Python entry point, resolved once boot completes.
-
-    async function boot() {
-      // indexURL defaults to the CDN's .../full/ dir, whose pyodide-lock.json
-      // lists the bundled, ABI-matched PyMuPDF wheel.
-      const pyodide = await loadPyodide();
-
-      setStatus("Loading PDF engine (PyMuPDF)&hellip;", { busy: true });
-      await pyodide.loadPackage("pymupdf");
-
-      // Drop the reflow core onto sys.path (cwd is on it).
-      const zipBuf = await (await fetch("./app.zip")).arrayBuffer();
-      await pyodide.unpackArchive(zipBuf, "zip");
-
-      reflowBytes = pyodide.runPython(`
-from web_adapter import reflow_bytes
-reflow_bytes
-`);
-
-      setStatus("Ready. Choose a PDF above.");
-      fileInput.disabled = false;
-      urlInput.disabled = false;
-      fetchUrlBtn.disabled = false;
-    }
-
-    // arxiv.org/pdf/... already sends Access-Control-Allow-Origin: *, so a
-    // direct browser fetch works without a proxy; abs/ pages don't serve a
-    // PDF at all, so redirect those to the pdf/ path.
-    function normalizeUrl(raw) {
-      const u = new URL(raw);
-      if (/(^|\.)arxiv\.org$/.test(u.hostname)) {
-        u.pathname = u.pathname.replace(/^\/abs\//, "/pdf/");
-      }
-      return u.toString();
-    }
-
-    async function reflowAndOffer(inBytes, downloadName) {
-      downloadEl.hidden = true;
-      downloadInfoEl.hidden = true;
-      setStatus("Reflowing&hellip; (this can take a few seconds)", { busy: true });
-
-      // JS Uint8Array -> Python bytes; result is a PyProxy over Python bytes.
-      const outProxy = reflowBytes(inBytes);
-      const outBytes = outProxy.toJs();
-      outProxy.destroy();
-
-      const url = URL.createObjectURL(new Blob([outBytes], { type: "application/pdf" }));
-      downloadEl.href = url;
-      downloadEl.download = downloadName;
-      downloadEl.hidden = false;
-
-      const timestamp = new Date().toLocaleString(undefined, {
-        dateStyle: "medium", timeStyle: "short",
-      });
-      downloadInfoEl.textContent = `${downloadName} — generated ${timestamp}`;
-      downloadInfoEl.hidden = false;
-
-      setStatus("Done.");
-    }
-
-    fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      fileInput.disabled = true;
-      try {
-        const inBytes = new Uint8Array(await file.arrayBuffer());
-        await reflowAndOffer(inBytes, file.name.replace(/\.pdf$/i, "") + ".reflowed.pdf");
-      } catch (err) {
-        console.error(err);
-        setStatus(`Failed to reflow this PDF: ${err.message || err}`, { error: true });
-      } finally {
-        fileInput.disabled = false;
-      }
-    });
-
-    fetchUrlBtn.addEventListener("click", async () => {
-      const raw = urlInput.value.trim();
-      if (!raw) return;
-
-      urlInput.disabled = true;
-      fetchUrlBtn.disabled = true;
-      try {
-        const url = normalizeUrl(raw);
-        setStatus("Downloading PDF&hellip;", { busy: true });
-
-        let resp;
-        try {
-          resp = await fetch(url);
-        } catch (networkErr) {
-          throw new Error(
-            "Could not fetch that URL from your browser (likely blocked by CORS). " +
-            "arXiv links work directly; for other sites, download the PDF and use " +
-            "the file picker above instead."
-          );
-        }
-        if (!resp.ok) throw new Error(`Server returned ${resp.status} ${resp.statusText}`);
-        const contentType = resp.headers.get("content-type") || "";
-        const inBytes = new Uint8Array(await resp.arrayBuffer());
-        if (!contentType.includes("pdf") && inBytes.slice(0, 4).join(",") !== "37,80,68,70") {
-          throw new Error("That URL didn't return a PDF.");
-        }
-
-        const name = decodeURIComponent(url.split("/").pop().split("?")[0]) || "document";
-        await reflowAndOffer(inBytes, name.replace(/\.pdf$/i, "") + ".reflowed.pdf");
-      } catch (err) {
-        console.error(err);
-        setStatus(err.message || String(err), { error: true });
-      } finally {
-        urlInput.disabled = false;
-        fetchUrlBtn.disabled = false;
-      }
-    });
-
-    boot().catch((err) => {
-      console.error(err);
-      setStatus(`Failed to load: ${err.message || err}`, { error: true });
-    });
-  </script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
