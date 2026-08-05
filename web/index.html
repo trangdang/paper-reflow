@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>paper-reflow</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <h1>paper-reflow</h1>
+  <p class="sub">Turn a two-column technical PDF into a single-column, phone-friendly one. Runs entirely in your browser &mdash; nothing is uploaded to a server.</p>
+
+  <div class="card">
+    <label for="file">Choose a PDF to reflow:</label><br>
+    <input type="file" id="file" accept="application/pdf" disabled>
+
+    <p class="or-divider">&mdash; or &mdash;</p>
+    <label for="url">Paste a PDF URL (e.g. an arXiv link):</label><br>
+    <input type="url" id="url" placeholder="https://arxiv.org/abs/2301.00001" disabled class="url-input">
+    <button id="fetchUrl" type="button" disabled>Fetch &amp; reflow</button>
+
+    <div id="status"><span class="spinner"></span>Loading&hellip;</div>
+
+    <hr class="divider">
+
+    <div class="download-row">
+      <a id="download" class="btn" hidden>Download reflowed PDF</a>
+      <span id="downloadInfo" hidden></span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/pyodide/v314.0.4/full/pyodide.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

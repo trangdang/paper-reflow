@@ -10,8 +10,12 @@ from workflow.pipeline import reflow_document
 
 def reflow_bytes(pdf_bytes: bytes) -> bytes:
     """Reflow a source PDF given as bytes and return the reflowed PDF as bytes.
-    The caller (JS) wraps the result in a Blob for download."""
-    src = fitz.open(stream=pdf_bytes, filetype="pdf")
+    The caller (JS) wraps the result in a Blob for download.
+
+    pdf_bytes arrives as a JsProxy over the browser's Uint8Array (Pyodide doesn't
+    auto-convert typed-array arguments to Python bytes), but JsProxy buffers
+    support the Python buffer protocol, so bytes(...) converts it either way."""
+    src = fitz.open(stream=bytes(pdf_bytes), filetype="pdf")
     result = reflow_document(src)
     out = result.final_doc.tobytes(garbage=4, deflate=True)
     result.final_doc.close()
