@@ -18,11 +18,10 @@ _KIND_COLORS = {
 }
 
 
-def render_overlay(
-    src_doc: fitz.Document, page_layouts: list[PageLayout], output_path: str
-) -> None:
+def render_overlay(src_doc: fitz.Document, page_layouts: list[PageLayout]) -> fitz.Document:
     """Debug PDF: original pages with tight (dashed color) + padded (solid
-    black) element bboxes and kind/column labels drawn on."""
+    black) element bboxes and kind/column labels drawn on. Returns the open
+    Document; the caller saves it (this is a dev/CLI-only artifact)."""
     out_doc = fitz.open()
     for layout in sorted(page_layouts, key=lambda p: p.page_no):
         src_page = src_doc[layout.page_no]
@@ -52,5 +51,4 @@ def render_overlay(
                 (el.bbox.x0, max(8, el.bbox.y0 - 2)), label, fontsize=6, color=color
             )
 
-    out_doc.save(output_path)
-    out_doc.close()
+    return out_doc
