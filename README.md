@@ -34,6 +34,25 @@ Sanity-check that no text was dropped or duplicated:
 uv run scripts/check_text_fidelity.py <input.pdf> <output.pdf>
 ```
 
+## Web UI
+
+A static, client-side page runs the same pipeline entirely in the browser via
+[Pyodide](https://pyodide.org/) (PyMuPDF is loaded as a bundled Pyodide package) — no server, no
+upload. Build the source bundle and serve `web/`:
+
+```bash
+# Bundle the reflow core into web/app.zip (rebuild after changing lib/ or workflow/)
+./web/build.sh
+
+# Serve over http (file:// won't work — Pyodide needs an origin)
+uv run python -m http.server -d web 8000
+# then open http://localhost:8000
+```
+
+Pick a PDF and download the reflowed result. The first load fetches the Pyodide runtime and PyMuPDF
+(~25 MB, cached afterwards). `web/app.zip` is a generated artifact (git-ignored); regenerate it with
+`web/build.sh` whenever the Python core changes.
+
 ## Approach
 
 Built on [PyMuPDF](https://pymupdf.readthedocs.io/) (`fitz`). The pipeline is a straight-line
