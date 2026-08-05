@@ -45,6 +45,15 @@ def _is_header_footer(bbox: Bbox, page_rect: fitz.Rect, text: str = "") -> bool:
     return header_footer_stamp(bbox, page_rect, text) is not None
 
 
+def _is_bare_page_number(text: str) -> bool:
+    """A running page-number stamp is just digits (whitespace aside) -- '7',
+    '12'. Anything else with a stray digit in it (a math fragment like
+    'tau->0', an equation tag) is real content, not a page number, even when
+    it's small and sits in the header/footer zone."""
+    stripped = text.strip()
+    return bool(stripped) and stripped.isdigit()
+
+
 def norm_running(text: str) -> str:
     """Letters-only, lowercased form of a block's text, for running-head/footer
     repetition matching. The per-page page number and all punctuation drop out,
@@ -107,13 +116,28 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
 
     # First pass: which normalized texts recur near the top (headers) / bottom
     # (footers), counted by distinct page so a block repeated within one page
-    # doesn't self-qualify.
+    # doesn't self-qualify. Bare page numbers (e.g. "2", "3", ...) collapse to
+    # the same "" normalized text on every page and so can never join
+    # top_pages/bot_pages via exact-text recurrence -- track them separately,
+    # by the mere presence of a small digit-only stamp in the zone, so a
+    # document whose only footer content is a running page number (no
+    # lettered running head/footer at all, e.g. a bare NeurIPS/arXiv style)
+    # still gets a footer band wide enough to catch a page number that lands
+    # just outside the tight 5% stamp band on a given page.
     top_pages: dict[str, set] = {}
     bot_pages: dict[str, set] = {}
+    top_digit_pages: set = set()
+    bot_digit_pages: set = set()
     for i, page in enumerate(pages):
         for b, bbox in _text_blocks_with_bbox(page, dicts[i]):
-            norm = norm_running(block_text(b))
+            text = block_text(b)
+            norm = norm_running(text)
             if len(norm) < 2:
+                if _is_small_stamp(bbox) and _is_bare_page_number(text):
+                    if bbox.y1 <= zone:
+                        top_digit_pages.add(i)
+                    elif bbox.y0 >= height - zone:
+                        bot_digit_pages.add(i)
                 continue
             if bbox.y1 <= zone:
                 top_pages.setdefault(norm, set()).add(i)
@@ -121,6 +145,8 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
                 bot_pages.setdefault(norm, set()).add(i)
     top_recurring = {n for n, ps in top_pages.items() if len(ps) >= config.RUNNING_HEAD_MIN_PAGES}
     bot_recurring = {n for n, ps in bot_pages.items() if len(ps) >= config.RUNNING_HEAD_MIN_PAGES}
+    have_top_digit_stamp = len(top_digit_pages) >= config.RUNNING_HEAD_MIN_PAGES
+    have_bot_digit_stamp = len(bot_digit_pages) >= config.RUNNING_HEAD_MIN_PAGES
 
     # Second pass: measure the band extent from header/footer blocks. Three
     # signals contribute:
@@ -138,8 +164,8 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
     #     established running head is what stops a lone small digit-ish math
     #     fragment near a footer-less page edge from inventing a spurious band.
     # First page excluded from the consensus.
-    have_header = bool(top_recurring)
-    have_footer = bool(bot_recurring)
+    have_header = bool(top_recurring) or have_top_digit_stamp
+    have_footer = bool(bot_recurring) or have_bot_digit_stamp
     tops: list[float] = []
     bots: list[float] = []
     for i, page in enumerate(pages):
@@ -149,7 +175,7 @@ def detect_content_bands(pages, text_dicts: list[dict] | None = None) -> tuple[f
             text = block_text(b)
             norm = norm_running(text)
             side = header_footer_stamp(bbox, page.rect, text)
-            digit_stamp = _is_small_stamp(bbox) and norm == "" and any(c.isdigit() for c in text)
+            digit_stamp = _is_small_stamp(bbox) and _is_bare_page_number(text)
             is_header = side == "header" or (
                 bbox.y1 <= zone and (norm in top_recurring or (have_header and digit_stamp))
             )
