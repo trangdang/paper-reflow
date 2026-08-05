@@ -251,7 +251,15 @@ def find_invisible_white_fill_artifacts(drawings: list[dict], page_rect: fitz.Re
 
 
 def _cluster_drawings(page: fitz.Page) -> list[Bbox]:
-    """Greedy union-find style clustering of drawing rects by proximity."""
+    """Greedy union-find style clustering of drawing rects by proximity.
+
+    Figures are as often a placed raster image (a rasterized plot pasted in
+    as a PNG/JPEG rather than drawn as vector paths) as a vector drawing --
+    get_drawings() alone sees none of those, so a raster figure gets zero
+    rects and silently vanishes from the output entirely. get_image_info()
+    bboxes are folded into the same rect pool so raster and vector figure
+    content cluster together identically (e.g. two side-by-side raster
+    sub-figures sharing one caption below them)."""
     drawings = page.get_drawings()
     artifact_idx = find_invisible_white_fill_artifacts(drawings, page.rect)
     rects = []
@@ -264,6 +272,14 @@ def _cluster_drawings(page: fitz.Page) -> list[Bbox]:
         if i in artifact_idx:
             continue
         rects.append(Bbox(r.x0, r.y0, r.x1, r.y1))
+    for info in page.get_image_info():
+        r = info.get("bbox")
+        if r is None:
+            continue
+        x0, y0, x1, y1 = r
+        if x1 - x0 <= 0 or y1 - y0 <= 0:
+            continue
+        rects.append(Bbox(x0, y0, x1, y1))
 
     clusters = cluster_bboxes(rects, config.FIGURE_CLUSTER_GAP_PT)
     return [c for c in clusters if c.width * c.height >= config.MIN_DRAWING_CLUSTER_AREA_PT2]
