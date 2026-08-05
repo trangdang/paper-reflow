@@ -33,10 +33,16 @@ def build_page_layout(
     gutter_width_override: float | None = None,
     content_band: tuple[float, float] | None = None,
     text_dict: dict | None = None,
+    force_single_column: bool = False,
 ) -> PageLayout:
     text_blocks, excluded_texts = get_text_blocks(page, content_band, text_dict)
     is_two_col, left_col_x, right_col_x, gutter_x = detect_gutter(page, text_blocks)
-    if is_two_col and gutter_width_override is not None:
+    if force_single_column:
+        # Document-wide consensus (see reflow_document) found this page's
+        # own gutter isn't corroborated by the rest of the document -- trust
+        # the consensus over this page's local, easily-fooled detection.
+        is_two_col, left_col_x, right_col_x, gutter_x = False, None, None, None
+    elif is_two_col and gutter_width_override is not None:
         left_col_x, right_col_x, gutter_x = pin_gutter_width(
             left_col_x, right_col_x, gutter_x, gutter_width_override
         )

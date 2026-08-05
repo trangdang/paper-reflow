@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import fitz
 
+from lib import config
 from lib.elements import Element, PageLayout
 from workflow.bbox_padding import pad_and_snap_bboxes
 from workflow.content_bands import detect_content_bands
@@ -47,10 +48,33 @@ def reflow_document(src_doc: fitz.Document) -> ReflowResult:
     probe_layouts = [
         build_page_layout(src_doc[i], i, text_dict=text_dicts[i]) for i in range(len(src_doc))
     ]
-    gutter_widths = [
-        round(pl.gutter_x[1] - pl.gutter_x[0], 3) for pl in probe_layouts if pl.gutter_x
+
+    # Whether this is a two-column document at all is itself a document-wide
+    # question, not a per-page one (see config.DOCUMENT_TWO_COLUMN_MIN_PAGE_
+    # FRACTION): a real two-column print template puts the gutter at nearly
+    # the same x-position on every page, while a single-column document's
+    # occasional page-local false positive (an author grid, side-by-side
+    # sub-figure labels) lands wherever that page's narrow content happens to
+    # be, uncorrelated page to page. Cluster detected gutter centers and only
+    # trust the document as two-column if most pages agree on (nearly) one.
+    centers_and_widths = [
+        ((pl.gutter_x[0] + pl.gutter_x[1]) / 2, pl.gutter_x[1] - pl.gutter_x[0])
+        for pl in probe_layouts
+        if pl.gutter_x
     ]
-    gutter_width = statistics.mode(gutter_widths) if gutter_widths else None
+    document_is_two_col = False
+    gutter_width = None
+    if centers_and_widths and probe_layouts:
+        median_center = statistics.median(c for c, _ in centers_and_widths)
+        agreeing_widths = [
+            round(w, 3)
+            for c, w in centers_and_widths
+            if abs(c - median_center) <= config.GUTTER_CENTER_CONSENSUS_TOLERANCE_PT
+        ]
+        agree_fraction = len(agreeing_widths) / len(probe_layouts)
+        if agree_fraction >= config.DOCUMENT_TWO_COLUMN_MIN_PAGE_FRACTION:
+            document_is_two_col = True
+            gutter_width = statistics.mode(agreeing_widths)
 
     # Running header/footer strips are a fixed-height document constant (see
     # detect_content_bands). Their text is dropped from the output and
@@ -65,6 +89,7 @@ def reflow_document(src_doc: fitz.Document) -> ReflowResult:
             gutter_width_override=gutter_width,
             content_band=content_band,
             text_dict=text_dicts[i],
+            force_single_column=not document_is_two_col,
         )
         for i in range(len(src_doc))
     ]

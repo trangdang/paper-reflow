@@ -7,6 +7,19 @@ NARROW_BLOCK_MAX_FRACTION = 0.55
 # gap must be empty across this fraction of narrow blocks' vertical extent
 GUTTER_COVERAGE_MIN_FRACTION = 0.6
 
+# --- Document-wide two-column consensus ---
+# A genuinely two-column document's gutter is a physical print-template
+# constant: it lands at (nearly) the same x-position on every page. A
+# single-column document can still fool the per-page detector on isolated
+# pages (an author-name grid, two side-by-side sub-figure labels sharing one
+# caption) -- but those false gutters are driven by whatever page-local
+# content happens to be narrow, so their positions scatter uncorrelated from
+# page to page instead of clustering. Require most pages to agree on
+# (nearly) the same gutter center before trusting any single page's
+# detection; otherwise the whole document is treated as single-column.
+DOCUMENT_TWO_COLUMN_MIN_PAGE_FRACTION = 0.5
+GUTTER_CENTER_CONSENSUS_TOLERANCE_PT = 15.0
+
 # --- Block classification ---
 # block must have this much of its width inside a column to be LEFT/RIGHT
 COLUMN_MEMBERSHIP_MIN_FRACTION = 0.95
