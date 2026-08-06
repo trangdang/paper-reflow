@@ -75,10 +75,14 @@ def plan_pagination(
     for el in sequence:
         w, h = scaled_dims(el, target_width, common_width)
         # Elements narrower than target_width (LEFT/RIGHT/SINGLE elements
-        # scaled by common_width rather than their own width) are centered
-        # horizontally; SPANNING/PAGE_BREAK elements already come out at
-        # width == target_width, so this is a no-op (x_offset == 0) for them.
-        x_offset = (target_width - w) / 2
+        # scaled by common_width rather than their own width) are only
+        # centered horizontally if they were roughly centered in their
+        # source column/page (e.g. a centered display equation) -- an
+        # element that was flush to one side (e.g. a left-aligned paragraph
+        # fragment) stays flush at x_offset 0 instead of drifting inward.
+        # SPANNING/PAGE_BREAK elements already come out at width ==
+        # target_width, so this is a no-op either way for them.
+        x_offset = (target_width - w) / 2 if el.centered else 0.0
         needed = h if not current else h + gap
         if current and y_cursor + needed > usable_height:
             pages.append(current)

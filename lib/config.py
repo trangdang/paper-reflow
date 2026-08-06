@@ -114,6 +114,14 @@ BBOX_OVERLAP_TOLERANCE_PT = 2.0
 # this stops a column's clip from ending flush against an opposite-column glyph
 # and sweeping it across the gutter into the wrong column.
 CLIP_GUTTER_CLEARANCE_PT = 1.5
+# An element narrower than its column/page counts as "centered" (and is
+# re-centered when scaled up for output, rather than left flush at x_offset 0)
+# if the leftover whitespace on its two sides is roughly equal -- the
+# asymmetry between the two side-gaps must be within this fraction of their
+# total, so a genuinely centered display equation/table still passes even
+# with a few points of extraction noise, while a left-aligned paragraph
+# fragment (all the slack on one side) does not.
+CENTERING_GAP_TOLERANCE_FRACTION = 0.2
 
 # --- Output layout ---
 TARGET_COLUMN_WIDTH_PT = 380.0

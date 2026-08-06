@@ -75,6 +75,12 @@ class Element:
     column: Column
     bbox: Bbox  # tight bbox — used for reading-order y-position decisions
     padded_bbox: Bbox = None  # whitespace-snapped clip bbox — set in the padding pass
+    # True if the element's tight bbox sits roughly centered within its
+    # column/page (e.g. a centered display equation or table) rather than
+    # flush to one side -- set in pad_and_snap_bboxes, consumed by
+    # plan_pagination to decide whether a narrower-than-target-width element
+    # should be re-centered in the output or left flush at x_offset 0.
+    centered: bool = False
     text: str = ""
     source_refs: list = field(default_factory=list)
 
