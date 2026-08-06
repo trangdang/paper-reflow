@@ -81,9 +81,9 @@ def insert_page_breaks(sequence: list[Element]) -> list[Element]:
     source page (including the final one), so the reflowed output can be
     traced back to the original PDF page it came from. The marker's bbox is
     sized to occupy exactly PAGE_BREAK_HEIGHT_PT once scaled to the output
-    column width, regardless of target_width, since scaled_height() scales
-    by (target_width / bbox width) and the marker bbox width is fixed to
-    config.TARGET_COLUMN_WIDTH_PT.
+    column width, regardless of target_width, since scaled_dims() always
+    scales PAGE_BREAK elements by (target_width / bbox width) and the marker
+    bbox width is fixed to config.TARGET_COLUMN_WIDTH_PT.
     """
     out: list[Element] = []
     last_el: Element | None = None
