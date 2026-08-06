@@ -5,7 +5,7 @@ any resulting overlaps between neighbors' padded boxes inward."""
 import fitz
 
 from lib import config
-from lib.elements import Bbox, Column, Kind, PageLayout
+from lib.elements import Bbox, Column, Element, Kind, PageLayout
 
 
 def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
@@ -55,9 +55,33 @@ def pad_and_snap_bboxes(layout: PageLayout, page_rect: fitz.Rect) -> list[str]:
             return None
         return min(edges) if is_left else max(edges)
 
+    gutter_mid = (layout.gutter_x[0] + layout.gutter_x[1]) / 2 if layout.gutter_x else None
+
+    def _mark_centered(el: Element, bb: Bbox) -> None:
+        """Nominal (unclamped) column bounds for `el`, used only to judge
+        whether its tight bbox sits roughly centered within them -- distinct
+        from the clip-region x0/x1 computed below, which get stretched/
+        clamped for rendering purposes."""
+        if el.column == Column.LEFT:
+            col_x0, col_x1 = margin_x0, gutter_mid if gutter_mid is not None else margin_x1
+        elif el.column == Column.RIGHT:
+            col_x0, col_x1 = gutter_mid if gutter_mid is not None else margin_x0, margin_x1
+        else:  # SPANNING / SINGLE
+            col_x0, col_x1 = margin_x0, margin_x1
+        left_gap = bb.x0 - col_x0
+        right_gap = col_x1 - bb.x1
+        total_gap = left_gap + right_gap
+        if total_gap <= 0:
+            el.centered = True
+        else:
+            el.centered = (
+                abs(left_gap - right_gap) <= config.CENTERING_GAP_TOLERANCE_FRACTION * total_gap
+            )
+
     padded = []
     for el in elements:
         bb = el.bbox
+        _mark_centered(el, bb)
         clamp = el.kind in (Kind.FIGURE, Kind.GRAPHIC)
         y0 = bb.y0 - pad
         y1 = bb.y1 + pad
