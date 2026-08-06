@@ -44,16 +44,15 @@ def render_final(
 
     out_doc = fitz.open()
     for page_items in pages:
-        content_height = max(y_offset + h for _, y_offset, h in page_items)
+        content_height = max(placed.y_offset + placed.height for placed in page_items)
         out_page = out_doc.new_page(width=page_width, height=content_height + 2 * margin)
-        for el, y_offset, h in page_items:
+        for el, y_offset, h, w, x_offset in page_items:
             if el.kind == Kind.PAGE_BREAK:
                 draw_page_break_marker(out_page, el, margin, y_offset, target_width, h)
                 continue
             clip = fitz.Rect(*el.padded_bbox.as_tuple())
-            rect = fitz.Rect(
-                margin, margin + y_offset, margin + target_width, margin + y_offset + h
-            )
+            x0 = margin + x_offset
+            rect = fitz.Rect(x0, margin + y_offset, x0 + w, margin + y_offset + h)
             out_page.show_pdf_page(rect, src_doc, el.page_no, clip=clip)
 
     return out_doc

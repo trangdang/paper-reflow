@@ -107,9 +107,13 @@ the actual work.
    `Element`s in final reading order.
 
 3. **`workflow/pagination.py`**: `plan_pagination` greedily packs the ordered element sequence onto
-   fixed-height output pages (never splitting one element across a page break), scaling each
-   element's height to a constant target column width. This pagination plan is the single source of
-   truth for page breaks — `workflow/render_final.py` reuses the exact same `plan_pagination` call to
+   fixed-height output pages (never splitting one element across a page break). SPANNING elements
+   scale individually to fill the target column width; LEFT/RIGHT/SINGLE elements instead all scale
+   by one document-wide factor (`common_single_column_width`, the widest such element) so a
+   narrower block — e.g. a tightly-boxed display equation — keeps the same font size as its column
+   neighbors instead of blowing up to fill the column on its own (and renders narrower than the
+   column as a result). This pagination plan is the single source of truth for page breaks and
+   element sizing — `workflow/render_final.py` reuses the exact same `plan_pagination` call to
    produce the output.
 
    **`workflow/render_overlay.py`**: renders the bbox/label debug PDF (`render_overlay`) directly
