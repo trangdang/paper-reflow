@@ -289,7 +289,14 @@ def _absorb_contained_labels(cluster_bbox: Bbox, text_blocks: list[dict], used: 
     """Fold text blocks that sit visually inside a figure's vector-art region
     (e.g. axis/equation labels layered on top of the drawing) into the figure
     element, so they don't linger as separate paragraph elements that falsely
-    register as overlapping the figure's clip region."""
+    register as overlapping the figure's clip region.
+
+    "Mostly contained" (>=80% overlap) is deliberately not "fully contained"
+    -- a caption sitting just below a tall multi-panel figure can overlap the
+    drawing cluster enough to read as one of its labels while still poking a
+    few points past the cluster's edge. Unioning the absorbed block's bbox
+    back in is what keeps that overhang inside the figure's eventual clip
+    region instead of silently clipping it off the render."""
     bbox = cluster_bbox
     for idx, b in enumerate(text_blocks):
         if idx in used:
@@ -303,6 +310,7 @@ def _absorb_contained_labels(cluster_bbox: Bbox, text_blocks: list[dict], used: 
         inter_area = max(0, ix1 - ix0) * max(0, iy1 - iy0)
         if inter_area / area >= 0.8:
             used.add(idx)
+            bbox = bbox.union(bb)
     return bbox
 
 
@@ -378,8 +386,8 @@ def build_figure_graphic_elements(
     heading or a real full-width table) is left as a TABLE. Ruled tables are
     detected separately via drawn rule lines and are unaffected by this."""
     clusters = _cluster_drawings(page)
-    for cluster_bbox in clusters:
-        _absorb_contained_labels(cluster_bbox, text_blocks, used_text_idx)
+    for i, cluster_bbox in enumerate(clusters):
+        clusters[i] = _absorb_contained_labels(cluster_bbox, text_blocks, used_text_idx)
 
     caption_groups: dict[int, list[int]] = {}
     caption_side: dict[int, str] = {}
